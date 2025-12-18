@@ -1,0 +1,44 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createRosClient, closeRosClient } from "./rosClient";
+
+export function useRos(url) {
+  const rosRef = useRef(null);
+  const [connected, setConnected] = useState(false);
+  const [lastError, setLastError] = useState(null);
+
+  const connect = () => {
+    
+    if (rosRef.current) return; // already created
+    const ros = createRosClient(url, {
+      onConnection: () => {
+        setConnected(true);
+        setLastError(null);
+      },
+      onClose: () => setConnected(false),
+      onError: (err) => {
+        setLastError(err?.message || String(err));
+        setConnected(false);
+      },
+    });
+    
+    rosRef.current = ros;
+  };
+
+  const disconnect = () => {
+    closeRosClient(rosRef.current);
+    rosRef.current = null;
+    setConnected(false);
+  };
+
+  // cleanup on unmount
+  useEffect(() => {
+    return () => {
+      closeRosClient(rosRef.current);
+      rosRef.current = null;
+    };
+  }, []);
+
+  const ros = useMemo(() => rosRef.current, [connected]); // updates when connected toggles
+
+  return { ros, connected, lastError, connect, disconnect };
+}
