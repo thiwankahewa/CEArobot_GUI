@@ -14,14 +14,17 @@ import StopIcon from "@mui/icons-material/Stop";
 import DirectionsIcon from "@mui/icons-material/Directions";
 import * as ROSLIB from "roslib";
 
-const CMD_VEL_TOPIC = "/cmd_vel";
-const CMD_VEL_TYPE = "geometry_msgs/msg/Twist";
+const MODE_TOPIC = "/mode";
+const MODE_TYPE = "std_msgs/msg/String";
 
-const STEER_TOPIC = "/gui/steer_deg";
+const CMD_VEL_TOPIC = "/wheel_rpm_manual";
+const CMD_VEL_TYPE = "std_msgs/msg/Int16MultiArray";
+
+const STEER_TOPIC = "/steer_manual";
 const STEER_TYPE = "std_msgs/msg/Float32";
 
 const STEER_WAIT_MS = 700;     // wait time after steering change
-const STEER_STEP_DEG = 10;     // left/right step in steering mode
+const STEER_STEP_DEG = 5;     // left/right step in steering mode
 const STEER_MIN = -45;
 const STEER_MAX = 45;
 
@@ -40,11 +43,13 @@ export default function RunPage({ ros, connected }) {
   // Topics (create once when ros exists/changes)
   const cmdVelTopicRef = React.useRef(null);
   const steerTopicRef = React.useRef(null);
+  const modeTopicRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!ros || !connected) {
       cmdVelTopicRef.current = null;
       steerTopicRef.current = null;
+      modeTopicRef.current = null;
       return;
     }
 
@@ -61,6 +66,13 @@ export default function RunPage({ ros, connected }) {
       messageType: STEER_TYPE,
       queue_size: 10,
     });
+
+    modeTopicRef.current = new ROSLIB.Topic({
+    ros,
+    name: MODE_TOPIC,
+    messageType: MODE_TYPE,
+    queue_size: 1, // mode is low-rate
+  });
 
     return () => {
       // stop publishing when leaving page or disconnecting
@@ -81,14 +93,13 @@ export default function RunPage({ ros, connected }) {
     return false;
   }
 
-  function publishTwist(linearX, angularZ) {
+  function publishRPM(LRPM, RRPM) {
     if (alertIfNoRos()) return;
     const topic = cmdVelTopicRef.current;
     if (!topic) return;
 
     topic.publish({
-        linear: { x: linearX, y: 0.0, z: 0.0 },
-        angular: { x: 0.0, y: 0.0, z: angularZ },
+        data: [LRPM, RRPM],
       });
   }
 
@@ -97,20 +108,29 @@ export default function RunPage({ ros, connected }) {
     const topic = steerTopicRef.current;
     if (!topic) return;
 
-    topic.publish({ data: Number(deg) });
+    topic.publish({ data: deg });
   }
+
+  function publishMode(nextMode) {
+  if (!connected || !ros) return;
+  if (!modeTopicRef.current) return;
+
+  // roslib accepts plain JS object
+  modeTopicRef.current.publish({
+    data: nextMode,
+  });
+}
 
   function stopContinuousCmd() {
     if (publishTimerRef.current) {
       clearInterval(publishTimerRef.current);
       publishTimerRef.current = null;
     }
-    // Always send a final stop
-    publishTwist(0.0, 0.0);
+    publishRPM(0, 0);
   }
 
   // Start continuous publish (10 Hz) while button is held
-  function startContinuousCmd(linearX, angularZ) {
+  function startContinuousCmd(LRPM, RRPM) {
     if (!isManual) return;
     if (alertIfNoRos()) return;
 
@@ -118,9 +138,9 @@ export default function RunPage({ ros, connected }) {
     stopContinuousCmd();
 
     // publish immediately + then keep publishing
-    publishTwist(linearX, angularZ);
+    publishRPM(LRPM, RRPM);
     publishTimerRef.current = setInterval(() => {
-      publishTwist(linearX, angularZ);
+      publishRPM(LRPM, RRPM);
     }, 100); // 10 Hz
   }
 
@@ -129,10 +149,10 @@ export default function RunPage({ ros, connected }) {
 
   if (steerDeg === 0) {
     // Diff turn mode: publish cmd_vel angular
-    startContinuousCmd(0.0, +0.8);
+    startContinuousCmd(-10, 10);
   } else {
     // Steering mode: adjust steering angle (no cmd_vel)
-    const next = Math.max(STEER_MIN, steerDeg - STEER_STEP_DEG);
+    const next = Math.min(STEER_MIN, steerDeg - STEER_STEP_DEG);
     beginSteerTransition(next);
   }
 }
@@ -141,16 +161,15 @@ function handleRightPress() {
   if (!joystickEnabled) return;
 
   if (steerDeg === 0) {
-    startContinuousCmd(0.0, -0.8);
+    startContinuousCmd(10, -10);
   } else {
-    const next = Math.min(STEER_MAX, steerDeg + STEER_STEP_DEG);
+    const next = Math.max(STEER_MAX, steerDeg + STEER_STEP_DEG);
     beginSteerTransition(next);
   }
 }
 
 
   function beginSteerTransition(nextDeg) {
-    // stop motion first
     stopContinuousCmd();
 
     // lock joystick while steering is moving
@@ -209,7 +228,8 @@ function handleRightPress() {
               onChange={(_, v) => {
                 if (!v) return;
                 setMode(v);
-                stopContinuousCmd();
+                stopContinuousCmd();     
+                publishMode(v);
               }}
               disabled={!canOperate}
               fullWidth
@@ -230,10 +250,10 @@ function handleRightPress() {
                   variant="contained"
                   fullWidth
                   disabled={!joystickEnabled}
-                  onMouseDown={() => startContinuousCmd(0.25, 0.0)}
+                  onMouseDown={() => startContinuousCmd(10, 10)}
                   onMouseUp={stopContinuousCmd}
                   onMouseLeave={stopContinuousCmd}
-                  onTouchStart={() => startContinuousCmd(0.25, 0.0)}
+                  onTouchStart={() => startContinuousCmd(10, 10)}
                   onTouchEnd={stopContinuousCmd}
                 >
                   Forward
@@ -277,10 +297,10 @@ function handleRightPress() {
                   fullWidth
                   disabled={!joystickEnabled}
                   sx={{ textTransform: "none" }}
-                  onMouseDown={() => startContinuousCmd(-0.2, 0.0)}
+                  onMouseDown={() => startContinuousCmd(-10, -10)}
                   onMouseUp={stopContinuousCmd}
                   onMouseLeave={stopContinuousCmd}
-                  onTouchStart={() => startContinuousCmd(-0.2, 0.0)}
+                  onTouchStart={() => startContinuousCmd(-10, -10)}
                   onTouchEnd={stopContinuousCmd}
                 >
                   Backward
