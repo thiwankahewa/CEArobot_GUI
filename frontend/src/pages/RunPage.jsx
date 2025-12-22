@@ -11,115 +11,85 @@ import {
 } from "@mui/material";
 
 import StopIcon from "@mui/icons-material/Stop";
-import DirectionsIcon from "@mui/icons-material/Directions";
 import * as ROSLIB from "roslib";
+import { useRosTopics } from "../ros/useRosTopics";
+import { useAppSnackbar } from "../utils/AppSnackbarProvider";
 
-const MODE_TOPIC = "/mode";
-const MODE_TYPE = "std_msgs/msg/String";
+const STEER_WAIT_MS = 700; // wait time after steering change
+const STEER_STEP_DEG = 5; // left/right step in steering mode
+const STEER_MIN = 45;
+const STEER_MAX = 135;
 
-const CMD_VEL_TOPIC = "/wheel_rpm_manual";
-const CMD_VEL_TYPE = "std_msgs/msg/Int16MultiArray";
+export default function RunPage({
+  ros,
+  connected,
+  runUi,
+  setRunUi,
+  estopActive,
+}) {
+  const mode = runUi.mode;
+  const steerMode = runUi.steerMode;
+  const steerDeg = runUi.steerAngleDeg;
+  const setMode = (v) => setRunUi((s) => ({ ...s, mode: v }));
+  const setSteerMode = (v) => setRunUi((s) => ({ ...s, steerMode: v }));
+  const setSteerDeg = (v) => setRunUi((s) => ({ ...s, steerAngleDeg: v }));
 
-const STEER_TOPIC = "/steer_manual";
-const STEER_TYPE = "std_msgs/msg/Float32";
-
-const STEER_WAIT_MS = 700;     // wait time after steering change
-const STEER_STEP_DEG = 5;     // left/right step in steering mode
-const STEER_MIN = -45;
-const STEER_MAX = 45;
-
-export default function RunPage({ ros, connected }) {
-  const [isIdle, setIsIdle] = React.useState(true);
-  const [mode, setMode] = React.useState("manual"); // "manual" | "auto"
-  const [steerDeg, setSteerDeg] = React.useState(0);
   const [steerBusy, setSteerBusy] = React.useState(false);
   const steerTimerRef = React.useRef(null);
-
-  const steerMode = steerDeg === 0 ? "Diff drive" : "Ackermann";
-
-  // Continuous publish interval ref
   const publishTimerRef = React.useRef(null);
 
-  // Topics (create once when ros exists/changes)
-  const cmdVelTopicRef = React.useRef(null);
-  const steerTopicRef = React.useRef(null);
-  const modeTopicRef = React.useRef(null);
+  const topicSpecs = React.useMemo(
+    () => [
+      {
+        key: "cmdVel",
+        name: "/wheel_rpm_manual",
+        type: "std_msgs/msg/Int16MultiArray",
+        queue_size: 10,
+      },
+      {
+        key: "steer",
+        name: "/steer_manual",
+        type: "std_msgs/msg/Float32",
+        queue_size: 1,
+      },
+      {
+        key: "mode",
+        name: "/mode",
+        type: "std_msgs/msg/String",
+        queue_size: 1,
+      },
+    ],
+    []
+  );
 
-  React.useEffect(() => {
-    if (!ros || !connected) {
-      cmdVelTopicRef.current = null;
-      steerTopicRef.current = null;
-      modeTopicRef.current = null;
-      return;
-    }
+  const { publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
+  const notify = useAppSnackbar();
 
-    cmdVelTopicRef.current = new ROSLIB.Topic({
-      ros,
-      name: CMD_VEL_TOPIC,
-      messageType: CMD_VEL_TYPE,
-      queue_size: 10,
-    });
-
-    steerTopicRef.current = new ROSLIB.Topic({
-      ros,
-      name: STEER_TOPIC,
-      messageType: STEER_TYPE,
-      queue_size: 10,
-    });
-
-    modeTopicRef.current = new ROSLIB.Topic({
-    ros,
-    name: MODE_TOPIC,
-    messageType: MODE_TYPE,
-    queue_size: 1, // mode is low-rate
-  });
-
-    return () => {
-      // stop publishing when leaving page or disconnecting
-      stopContinuousCmd();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ros, connected]);
-
-  const canOperate = connected && !isIdle;
-  const isManual = canOperate && mode === "manual";
+  const isManual = !estopActive && mode === "manual";
   const joystickEnabled = isManual && !steerBusy;
 
-  function alertIfNoRos() {
-    if (!connected || !ros) {
-      alert("ROS not connected. Please connect from the top bar.");
-      return true;
+  function ensureRosReady() {
+    if (!topicsReady) {
+      notify.error("ROS not connected. Please connect from the top bar.");
+      return false;
     }
-    return false;
+    return true;
   }
 
   function publishRPM(LRPM, RRPM) {
-    if (alertIfNoRos()) return;
-    const topic = cmdVelTopicRef.current;
-    if (!topic) return;
-
-    topic.publish({
-        data: [LRPM, RRPM],
-      });
+    if (!ensureRosReady()) return;
+    return publish("cmdVel", { data: [LRPM, RRPM] });
   }
 
   function publishSteer(deg) {
-    if (alertIfNoRos()) return;
-    const topic = steerTopicRef.current;
-    if (!topic) return;
-
-    topic.publish({ data: deg });
+    if (!ensureRosReady()) return;
+    return publish("steer", { data: deg });
   }
 
   function publishMode(nextMode) {
-  if (!connected || !ros) return;
-  if (!modeTopicRef.current) return;
-
-  // roslib accepts plain JS object
-  modeTopicRef.current.publish({
-    data: nextMode,
-  });
-}
+    if (!ensureRosReady()) return;
+    return publish("mode", { data: nextMode });
+  }
 
   function stopContinuousCmd() {
     if (publishTimerRef.current) {
@@ -129,52 +99,22 @@ export default function RunPage({ ros, connected }) {
     publishRPM(0, 0);
   }
 
-  // Start continuous publish (10 Hz) while button is held
-  function startContinuousCmd(LRPM, RRPM) {
+  function setSteeringMode(nextMode) {
     if (!isManual) return;
-    if (alertIfNoRos()) return;
+    setSteerMode(nextMode);
 
-    // clear any previous loop first
-    stopContinuousCmd();
-
-    // publish immediately + then keep publishing
-    publishRPM(LRPM, RRPM);
-    publishTimerRef.current = setInterval(() => {
-      publishRPM(LRPM, RRPM);
-    }, 100); // 10 Hz
+    if (nextMode === "diff") {
+      beginSteerTransition(0);
+    } else {
+      beginSteerTransition(90);
+    }
   }
-
-  function handleLeftPress() {
-  if (!joystickEnabled) return;
-
-  if (steerDeg === 0) {
-    // Diff turn mode: publish cmd_vel angular
-    startContinuousCmd(-10, 10);
-  } else {
-    // Steering mode: adjust steering angle (no cmd_vel)
-    const next = Math.min(STEER_MIN, steerDeg - STEER_STEP_DEG);
-    beginSteerTransition(next);
-  }
-}
-
-function handleRightPress() {
-  if (!joystickEnabled) return;
-
-  if (steerDeg === 0) {
-    startContinuousCmd(10, -10);
-  } else {
-    const next = Math.max(STEER_MAX, steerDeg + STEER_STEP_DEG);
-    beginSteerTransition(next);
-  }
-}
-
 
   function beginSteerTransition(nextDeg) {
     stopContinuousCmd();
 
     // lock joystick while steering is moving
     setSteerBusy(true);
-
     setSteerDeg(nextDeg);
     publishSteer(nextDeg);
 
@@ -184,54 +124,81 @@ function handleRightPress() {
     }, STEER_WAIT_MS);
   }
 
-  // When IDLE turns ON, force stop + lock everything
-  React.useEffect(() => {
-    if (isIdle) {
-      stopContinuousCmd();
-      setSteerDeg(0);
+  // Start continuous publish (10 Hz) while button is held
+  function startContinuousCmd(LRPM, RRPM) {
+    if (!isManual) return;
+    stopContinuousCmd();
+    publishRPM(LRPM, RRPM);
+    publishTimerRef.current = setInterval(() => {
+      publishRPM(LRPM, RRPM);
+    }, 100);
+  }
+
+  function handleLeftPress() {
+    if (!joystickEnabled) return;
+
+    if (steerMode === "diff") {
+      startContinuousCmd(10, -10);
+    } else {
+      changeAckAngle(-STEER_STEP_DEG);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isIdle]);
+  }
+
+  function handleRightPress() {
+    if (!joystickEnabled) return;
+
+    if (steerMode === "diff") {
+      startContinuousCmd(-10, 10);
+    } else {
+      changeAckAngle(+STEER_STEP_DEG);
+    }
+  }
+
+  function changeAckAngle(delta) {
+    const next = steerDeg + delta;
+
+    if (next < STEER_MIN) {
+      notify.warning(`Max steering reached +45°`);
+      return;
+    }
+    if (next > STEER_MAX) {
+      notify.warning(`Max steering reached -45°`);
+      return;
+    }
+
+    beginSteerTransition(next);
+  }
+
+  function showSteerWarning(msg) {
+    setSteerWarning(msg);
+    setWarnOpen(true);
+  }
 
   React.useEffect(() => {
-  return () => {
-    if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
-  };
-}, []);
+    return () => {
+      if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
+    };
+  }, []);
 
   return (
-    <Grid container spacing={2} direction="row" >
+    <Grid container spacing={2} direction="row">
       {/* LEFT COLUMN (50%) */}
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
           <Stack spacing={2}>
-            {/* 1) IDLE toggle button */}
-            <Button
-              variant={isIdle ? "contained" : "outlined"}
-              color={isIdle ? "secondary" : "primary"}
-              onClick={() => setIsIdle((v) => !v)}
-              sx={{ textTransform: "none" }}
-              startIcon={<DirectionsIcon />}
-            >
-              {isIdle ? "IDLE" : "Active"}
-            </Button>
-
-            <Divider />
-            <Typography variant="h6" sx={{ fontWeight: 800, textAlign: "center" }}>
-              Mode
-            </Typography>
+            <Typography variant="body1"> Drive mode </Typography>
 
             {/* 2) Manual / Auto toggle (only when not IDLE) */}
             <ToggleButtonGroup
               value={mode}
+              disabled={estopActive}
               exclusive
               onChange={(_, v) => {
                 if (!v) return;
                 setMode(v);
-                stopContinuousCmd();     
+                stopContinuousCmd();
                 publishMode(v);
               }}
-              disabled={!canOperate}
               fullWidth
               sx={{ "& .MuiToggleButton-root": { textTransform: "none" } }}
             >
@@ -239,111 +206,90 @@ function handleRightPress() {
               <ToggleButton value="auto">Auto</ToggleButton>
             </ToggleButtonGroup>
 
+            <Divider />
+            <Typography variant="body1">Steering mode</Typography>
+
+            <ToggleButtonGroup
+              value={steerMode}
+              exclusive
+              onChange={(_, v) => {
+                if (!v) return;
+                setSteeringMode(v);
+              }}
+              disabled={!isManual || steerBusy}
+              fullWidth
+              sx={{ "& .MuiToggleButton-root": { textTransform: "none" } }}
+            >
+              <ToggleButton value="diff">Diff</ToggleButton>
+              <ToggleButton value="ackermann">Ackermann</ToggleButton>
+            </ToggleButtonGroup>
+
             {/* 3) Joystick buttons (only when not IDLE and Manual) */}
-            <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-              <Typography variant="body2" color="text.secondary" paddingBottom={1}>
-                Drive mode: <b>{steerMode}</b> {steerBusy ? "(changing...)" : ""}
-              </Typography>
-              <Stack spacing={1} alignItems="center">
-                {/* Forward */}
+            <Divider />
+            <Typography variant="body1">CEAbot Controller</Typography>
+
+            <Stack spacing={1} alignItems="center">
+              {/* Forward */}
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={!joystickEnabled}
+                onMouseDown={() => startContinuousCmd(10, 10)}
+                onMouseUp={stopContinuousCmd}
+                onMouseLeave={stopContinuousCmd}
+                onTouchStart={() => startContinuousCmd(10, 10)}
+                onTouchEnd={stopContinuousCmd}
+              >
+                Forward
+              </Button>
+
+              <Stack direction="row" spacing={1} width="100%">
+                {/* Left */}
                 <Button
-                  variant="contained"
-                  fullWidth
-                  disabled={!joystickEnabled}
-                  onMouseDown={() => startContinuousCmd(10, 10)}
-                  onMouseUp={stopContinuousCmd}
-                  onMouseLeave={stopContinuousCmd}
-                  onTouchStart={() => startContinuousCmd(10, 10)}
-                  onTouchEnd={stopContinuousCmd}
-                >
-                  Forward
-                </Button>
-
-                <Stack direction="row" spacing={1} width="100%">
-                  {/* Left */}
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    disabled={!joystickEnabled}
-                    sx={{ textTransform: "none" }}
-                    onMouseDown={handleLeftPress}
-                    onMouseUp={stopContinuousCmd}
-                    onMouseLeave={stopContinuousCmd}
-                    onTouchStart={handleLeftPress}
-                    onTouchEnd={stopContinuousCmd}
-                  >
-                    Left
-                  </Button>
-
-                  {/* Right */}
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    disabled={!joystickEnabled}
-                    sx={{ textTransform: "none" }}
-                    onMouseDown={handleRightPress}
-                    onMouseUp={stopContinuousCmd}
-                    onMouseLeave={stopContinuousCmd}
-                    onTouchStart={handleRightPress}
-                    onTouchEnd={stopContinuousCmd}
-                  >
-                    Right
-                  </Button>
-                </Stack>
-
-                {/* Backward */}
-                <Button
-                  variant="contained"
+                  variant="outlined"
                   fullWidth
                   disabled={!joystickEnabled}
                   sx={{ textTransform: "none" }}
-                  onMouseDown={() => startContinuousCmd(-10, -10)}
+                  onMouseDown={handleLeftPress}
                   onMouseUp={stopContinuousCmd}
                   onMouseLeave={stopContinuousCmd}
-                  onTouchStart={() => startContinuousCmd(-10, -10)}
+                  onTouchStart={handleLeftPress}
                   onTouchEnd={stopContinuousCmd}
                 >
-                  Backward
+                  {steerMode === "ackermann" ? `-${STEER_STEP_DEG}°` : "Left"}
+                </Button>
+
+                {/* Right */}
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  disabled={!joystickEnabled}
+                  sx={{ textTransform: "none" }}
+                  onMouseDown={handleRightPress}
+                  onMouseUp={stopContinuousCmd}
+                  onMouseLeave={stopContinuousCmd}
+                  onTouchStart={handleRightPress}
+                  onTouchEnd={stopContinuousCmd}
+                >
+                  {steerMode === "ackermann" ? `+${STEER_STEP_DEG}°` : "Right"}
                 </Button>
               </Stack>
-            </Paper>
 
-            {/* 4) Steering buttons row (-90, 0, 90) with your enable rule */}
-            <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-              <Typography sx={{ fontWeight: 700, mb: 1 }}>Steering</Typography>
-
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant={steerDeg === -90 ? "contained" : "outlined"}
-                  fullWidth
-                  disabled={!isManual || steerDeg !== 0 || steerBusy}
-                  sx={{ textTransform: "none" }}
-                  onClick={() => beginSteerTransition(-90)}
-                >
-                  -90
-                </Button>
-
-                <Button
-                  variant={steerDeg === 0 ? "contained" : "outlined"}
-                  fullWidth
-                  disabled={!isManual}
-                  sx={{ textTransform: "none" }}
-                  onClick={() => beginSteerTransition(0)}
-                >
-                  0
-                </Button>
-
-                <Button
-                  variant={steerDeg === 90 ? "contained" : "outlined"}
-                  fullWidth
-                  disabled={!isManual || steerDeg !== 0 || steerBusy}
-                  sx={{ textTransform: "none" }}
-                  onClick={() => beginSteerTransition(90)}
-                >
-                  90
-                </Button>
-              </Stack>
-            </Paper>
+              {/* Backward */}
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={!joystickEnabled}
+                sx={{ textTransform: "none" }}
+                onMouseDown={() => startContinuousCmd(-10, -10)}
+                onMouseUp={stopContinuousCmd}
+                onMouseLeave={stopContinuousCmd}
+                onTouchStart={() => startContinuousCmd(-10, -10)}
+                onTouchEnd={stopContinuousCmd}
+              >
+                Backward
+              </Button>
+            </Stack>
 
             {/* 5) STOP button (manual mode only) */}
             <Button
@@ -357,6 +303,16 @@ function handleRightPress() {
               Stop
             </Button>
 
+            {steerMode === "ackermann" ? (
+              <Typography variant="body2" color="text.secondary">
+                Current steering angle: <b>{steerDeg - 90}°</b>
+              </Typography>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Current steering angle: <b>0°</b>
+              </Typography>
+            )}
+
             <Typography variant="caption" color="text.secondary">
               Tip: hold teleop buttons to keep moving CEAbot.
             </Typography>
@@ -366,11 +322,14 @@ function handleRightPress() {
 
       {/* RIGHT COLUMN (50%) */}
       <Grid item xs={12} sm={6}>
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, minHeight: 300 }}>
-          <Typography sx={{ fontWeight: 800 }}>Feedback / Auto Controls</Typography>
-          <Typography variant="body2" color="text.secondary">
-           
+        <Paper
+          variant="outlined"
+          sx={{ p: 2, borderRadius: 2, minHeight: 300 }}
+        >
+          <Typography sx={{ fontWeight: 800 }}>
+            Feedback / Auto Controls
           </Typography>
+          <Typography variant="body2" color="text.secondary"></Typography>
         </Paper>
       </Grid>
     </Grid>

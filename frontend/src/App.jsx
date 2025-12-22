@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box,Dialog, DialogTitle, DialogContent, DialogActions, Button} from "@mui/material";
+import { Fab } from "@mui/material";
 
 import TopStatusBar from "./components/TopStatusBar";
 import BottomNav from "./components/BottomNav";
@@ -14,26 +14,78 @@ import TestPage from "./pages/TestPage";
 
 import { useRos } from "./ros/useRos";
 import { ROSBRIDGE_DEFAULT_URL } from "./ros/config";
-
+import { useAppDialog } from "./utils/AppDialogProvider.jsx";
+import { useAppSnackbar } from "./utils/AppSnackbarProvider.jsx";
+import { useRosTopics } from "./ros/useRosTopics";
 
 export default function App() {
   const [tab, setTab] = React.useState(0);
-  const [blockedOpen, setBlockedOpen] = React.useState(false);
-  const [requestedTab, setRequestedTab] = React.useState(0);
+  const [estopActive, setEstopActive] = React.useState(false);
 
-  const { ros, connected, lastError, connect, disconnect } =
-    useRos(ROSBRIDGE_DEFAULT_URL);
+  const { ros, connected, lastError, connect, disconnect } = useRos(
+    ROSBRIDGE_DEFAULT_URL
+  );
+
+  const dialog = useAppDialog();
+  const notify = useAppSnackbar();
 
   const PROTECTED_TABS = new Set([1, 2, 3, 4, 5]);
 
+  const topicSpecs = React.useMemo(
+    () => [
+      {
+        key: "estop",
+        name: "/eStop",
+        type: "std_msgs/msg/Bool",
+        queue_size: 1,
+      },
+    ],
+    []
+  );
+
+  const { publish, topicsReady, subscribe } = useRosTopics(
+    ros,
+    connected,
+    topicSpecs
+  );
+
   const handleTabChange = (nextTab) => {
     if (!connected && PROTECTED_TABS.has(nextTab)) {
-      setRequestedTab(nextTab);
-      setBlockedOpen(true);
-      return; 
+      dialog.showDialog({
+        title: "CEAbot not connected",
+        content: "Please connect to the CEAbot before opening this page.",
+        actions: [
+          { label: "OK" },
+          {
+            label: "Connect now",
+            variant: "contained",
+            onClick: connect,
+          },
+        ],
+      });
+      return;
     }
     setTab(nextTab);
   };
+
+  function sendEstop(next) {
+    if (!topicsReady) {
+      notify.error("ROS not connected. Cannot toggle E-Stop.");
+      return;
+    }
+    publish("estop", { data: !!next });
+    setEstopActive(!!next);
+    if (next) notify.error("Emergency Stop Activated");
+    else notify.success("Emergency Stop Released");
+  }
+
+  function handleEstopClick() {
+    if (!estopActive) {
+      sendEstop(true);
+      return;
+    }
+    sendEstop(false);
+  }
 
   const [status] = React.useState({
     rosbridgeConnected: true,
@@ -44,43 +96,55 @@ export default function App() {
     cpuTempC: 52,
   });
 
+  const [runUi, setRunUi] = React.useState({
+    mode: "manual",
+    steerMode: "diff",
+    steerDeg: 0,
+  });
+
   const pages = [
-    <HomePage ros={ros} connected={connected}/>,
-    <RunPage ros={ros} connected={connected}/>,
-    <PhenoPage ros={ros} connected={connected}/>,
-    <SettingsPage ros={ros} connected={connected}/>,
-    <LogsPage ros={ros} connected={connected}/>,
-    <TestPage ros={ros} connected={connected}/>,
+    <HomePage ros={ros} connected={connected} estopActive={estopActive} />,
+    <RunPage
+      ros={ros}
+      connected={connected}
+      runUi={runUi}
+      setRunUi={setRunUi}
+      estopActive={estopActive}
+    />,
+    <PhenoPage ros={ros} connected={connected} estopActive={estopActive} />,
+    <SettingsPage ros={ros} connected={connected} estopActive={estopActive} />,
+    <LogsPage ros={ros} connected={connected} estopActive={estopActive} />,
+    <TestPage ros={ros} connected={connected} estopActive={estopActive} />,
   ];
 
   return (
-    <Box sx={{ bgcolor: "background.default" }}>
-      <TopStatusBar 
+    <div>
+      <TopStatusBar
         status={status}
         connected={connected}
         lastError={lastError}
         connect={connect}
-        disconnect={disconnect} />
+        disconnect={disconnect}
+        mode={runUi.mode}
+      />
       <PageContainer>{pages[tab]}</PageContainer>
       <BottomNav value={tab} onChange={handleTabChange} />
-      <Dialog open={blockedOpen} onClose={() => setBlockedOpen(false)}>
-        <DialogTitle>CEAbot not connected</DialogTitle>
-        <DialogContent>
-          Please connect to the CEAbot before opening this page.
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBlockedOpen(false)}>OK</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setBlockedOpen(false);
-              connect();
-            }}
-          >
-            Connect now
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <Fab
+        variant="extended"
+        color={estopActive ? "error" : "default"}
+        onClick={handleEstopClick}
+        sx={{
+          position: "fixed",
+          right: 25,
+          bottom: 10,
+          letterSpacing: 1.2,
+          borderRadius: 10,
+          padding: 4.5,
+          fontSize: 17,
+        }}
+      >
+        E STOP
+      </Fab>
+    </div>
   );
 }
