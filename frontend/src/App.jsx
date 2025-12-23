@@ -141,6 +141,20 @@ export default function App() {
           borderRadius: 10,
           padding: 4.5,
           fontSize: 17,
+          ...(estopActive && {
+            animation: "estopPulse 1.8s ease-in-out infinite",
+            "@keyframes estopPulse": {
+              "0%": {
+                boxShadow: "0 0 0 0 rgba(211,47,47,0.8)",
+              },
+              "70%": {
+                boxShadow: "0 0 0 14px rgba(211,47,47,0)",
+              },
+              "100%": {
+                boxShadow: "0 0 0 0 rgba(211,47,47,0)",
+              },
+            },
+          }),
         }}
       >
         E STOP
