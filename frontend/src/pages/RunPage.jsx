@@ -86,6 +86,7 @@ export default function RunPage({
 
   function publishMode(nextMode) {
     if (!ensureRosReady()) return;
+    if (nextMode === "auto") { publishSteer(0); }
     return publish("mode", { data: nextMode });
   }
 

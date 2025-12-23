@@ -35,7 +35,7 @@ export default function App() {
     () => [
       {
         key: "estop",
-        name: "/eStop",
+        name: "/e_stop",
         type: "std_msgs/msg/Bool",
         queue_size: 1,
       },
