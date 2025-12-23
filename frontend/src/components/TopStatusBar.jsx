@@ -3,6 +3,7 @@ import { AppBar, Toolbar, Stack, Button } from "@mui/material";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import StatusChip from "./StatusChip";
 import { useAppDialog } from "../utils/AppDialogProvider.jsx";
+import { useAppSnackbar } from "../utils/AppSnackbarProvider";
 
 export default function TopStatusBar({
   status,
@@ -13,6 +14,7 @@ export default function TopStatusBar({
   mode,
 }) {
   const dialog = useAppDialog();
+  const notify = useAppSnackbar();
 
   const handleConnectionClick = () => {
     if (!connected) {
@@ -24,7 +26,7 @@ export default function TopStatusBar({
 
   React.useEffect(() => {
     if (lastError) {
-      alert(`ROS connection failed: ${lastError}`);
+      notify.error(`${lastError}`);
     }
   }, [lastError]);
 

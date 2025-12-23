@@ -29,7 +29,7 @@ export default function BottomNav({ value, onChange }) {
           height: 64,
           "& .MuiBottomNavigationAction-root": {
             minWidth: 0,
-            transition: "transform 1s ease",
+            transition: "transform 0.5s ease",
           },
           "& .MuiBottomNavigationAction-root.Mui-selected": {
             transform: "scale(1.35)", //

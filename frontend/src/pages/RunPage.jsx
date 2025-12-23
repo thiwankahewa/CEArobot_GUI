@@ -10,8 +10,6 @@ import {
   Divider,
 } from "@mui/material";
 
-import StopIcon from "@mui/icons-material/Stop";
-import * as ROSLIB from "roslib";
 import { useRosTopics } from "../ros/useRosTopics";
 import { useAppSnackbar } from "../utils/AppSnackbarProvider";
 
@@ -181,157 +179,166 @@ export default function RunPage({
   }, []);
 
   return (
-    <Grid container spacing={2} direction="row">
-      {/* LEFT COLUMN (50%) */}
-      <Grid item xs={12} sm={6}>
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-          <Stack spacing={2}>
-            <Typography variant="body1"> Drive mode </Typography>
+    <Paper variant="outlined" sx={{ p: 1.5, width: "33%" }}>
+      <Stack spacing={3}>
+        <Typography variant="body1"> Drive mode </Typography>
+        <ToggleButtonGroup
+          value={mode}
+          disabled={estopActive}
+          exclusive
+          onChange={(_, v) => {
+            if (!v) return;
+            setMode(v);
+            stopContinuousCmd();
+            publishMode(v);
+          }}
+          fullWidth
+          sx={{
+            "& .MuiToggleButton-root": { textTransform: "none" },
+            height: 60,
+            "& .MuiToggleButton-root:first-of-type": {
+              borderTopLeftRadius: 50,
+              borderBottomLeftRadius: 50,
+            },
 
-            {/* 2) Manual / Auto toggle (only when not IDLE) */}
-            <ToggleButtonGroup
-              value={mode}
-              disabled={estopActive}
-              exclusive
-              onChange={(_, v) => {
-                if (!v) return;
-                setMode(v);
-                stopContinuousCmd();
-                publishMode(v);
-              }}
-              fullWidth
-              sx={{ "& .MuiToggleButton-root": { textTransform: "none" } }}
-            >
-              <ToggleButton value="manual">Manual</ToggleButton>
-              <ToggleButton value="auto">Auto</ToggleButton>
-            </ToggleButtonGroup>
+            // Last button
+            "& .MuiToggleButton-root:last-of-type": {
+              borderTopRightRadius: 50,
+              borderBottomRightRadius: 50,
+            },
+          }}
+        >
+          <ToggleButton value="manual" sx={{ fontSize: 20 }}>
+            Manual
+          </ToggleButton>
+          <ToggleButton value="auto" sx={{ fontSize: 20 }}>
+            Auto
+          </ToggleButton>
+        </ToggleButtonGroup>
 
-            <Divider />
-            <Typography variant="body1">Steering mode</Typography>
+        <Typography variant="body1">Steering mode</Typography>
 
-            <ToggleButtonGroup
-              value={steerMode}
-              exclusive
-              onChange={(_, v) => {
-                if (!v) return;
-                setSteeringMode(v);
-              }}
-              disabled={!isManual || steerBusy}
-              fullWidth
-              sx={{ "& .MuiToggleButton-root": { textTransform: "none" } }}
-            >
-              <ToggleButton value="diff">Diff</ToggleButton>
-              <ToggleButton value="ackermann">Ackermann</ToggleButton>
-            </ToggleButtonGroup>
+        <ToggleButtonGroup
+          value={steerMode}
+          exclusive
+          onChange={(_, v) => {
+            if (!v) return;
+            setSteeringMode(v);
+          }}
+          disabled={!isManual || steerBusy}
+          fullWidth
+          sx={{
+            "& .MuiToggleButton-root": { textTransform: "none" },
+            height: 60,
+            "& .MuiToggleButton-root:first-of-type": {
+              borderTopLeftRadius: 50,
+              borderBottomLeftRadius: 50,
+            },
 
-            {/* 3) Joystick buttons (only when not IDLE and Manual) */}
-            <Divider />
-            <Typography variant="body1">CEAbot Controller</Typography>
+            // Last button
+            "& .MuiToggleButton-root:last-of-type": {
+              borderTopRightRadius: 50,
+              borderBottomRightRadius: 50,
+            },
+          }}
+        >
+          <ToggleButton value="diff" sx={{ fontSize: 20 }}>
+            Diff
+          </ToggleButton>
+          <ToggleButton value="ackermann" sx={{ fontSize: 20 }}>
+            Ackermann
+          </ToggleButton>
+        </ToggleButtonGroup>
 
-            <Stack spacing={1} alignItems="center">
-              {/* Forward */}
-              <Button
-                variant="contained"
-                fullWidth
-                disabled={!joystickEnabled}
-                onMouseDown={() => startContinuousCmd(10, 10)}
-                onMouseUp={stopContinuousCmd}
-                onMouseLeave={stopContinuousCmd}
-                onTouchStart={() => startContinuousCmd(10, 10)}
-                onTouchEnd={stopContinuousCmd}
-              >
-                Forward
-              </Button>
+        <Divider />
 
-              <Stack direction="row" spacing={1} width="100%">
-                {/* Left */}
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  disabled={!joystickEnabled}
-                  sx={{ textTransform: "none" }}
-                  onMouseDown={handleLeftPress}
-                  onMouseUp={stopContinuousCmd}
-                  onMouseLeave={stopContinuousCmd}
-                  onTouchStart={handleLeftPress}
-                  onTouchEnd={stopContinuousCmd}
-                >
-                  {steerMode === "ackermann" ? `-${STEER_STEP_DEG}°` : "Left"}
-                </Button>
-
-                {/* Right */}
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  disabled={!joystickEnabled}
-                  sx={{ textTransform: "none" }}
-                  onMouseDown={handleRightPress}
-                  onMouseUp={stopContinuousCmd}
-                  onMouseLeave={stopContinuousCmd}
-                  onTouchStart={handleRightPress}
-                  onTouchEnd={stopContinuousCmd}
-                >
-                  {steerMode === "ackermann" ? `+${STEER_STEP_DEG}°` : "Right"}
-                </Button>
-              </Stack>
-
-              {/* Backward */}
-              <Button
-                variant="contained"
-                fullWidth
-                disabled={!joystickEnabled}
-                sx={{ textTransform: "none" }}
-                onMouseDown={() => startContinuousCmd(-10, -10)}
-                onMouseUp={stopContinuousCmd}
-                onMouseLeave={stopContinuousCmd}
-                onTouchStart={() => startContinuousCmd(-10, -10)}
-                onTouchEnd={stopContinuousCmd}
-              >
-                Backward
-              </Button>
-            </Stack>
-
-            {/* 5) STOP button (manual mode only) */}
+        <Stack
+          spacing={1}
+          alignItems="stretch"
+          direction="row"
+          sx={{ height: 150 }}
+        >
+          {/* Forward */}
+          <Button
+            variant="contained"
+            fullWidth
+            disabled={!joystickEnabled}
+            sx={{
+              textTransform: "none",
+              width: "25%",
+              fontSize: 20,
+              borderTopLeftRadius: 100,
+              borderBottomLeftRadius: 100,
+            }}
+            onMouseDown={handleLeftPress}
+            onMouseUp={stopContinuousCmd}
+            onMouseLeave={stopContinuousCmd}
+            onTouchStart={handleLeftPress}
+            onTouchEnd={stopContinuousCmd}
+          >
+            {steerMode === "ackermann" ? `-${STEER_STEP_DEG}°` : "Left"}
+          </Button>
+          <Stack spacing={1} width="100%" sx={{ flex: 1, height: "100%" }}>
+            {/* Left */}
             <Button
               variant="contained"
-              color="error"
-              startIcon={<StopIcon />}
-              disabled={!isManual}
-              onClick={stopContinuousCmd}
-              sx={{ textTransform: "none" }}
+              fullWidth
+              disabled={!joystickEnabled}
+              onMouseDown={() => startContinuousCmd(10, 10)}
+              onMouseUp={stopContinuousCmd}
+              onMouseLeave={stopContinuousCmd}
+              onTouchStart={() => startContinuousCmd(10, 10)}
+              onTouchEnd={stopContinuousCmd}
+              sx={{ flex: 1, fontSize: 20 }}
             >
-              Stop
+              Forward
             </Button>
-
-            {steerMode === "ackermann" ? (
-              <Typography variant="body2" color="text.secondary">
-                Current steering angle: <b>{steerDeg - 90}°</b>
-              </Typography>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Current steering angle: <b>0°</b>
-              </Typography>
-            )}
-
-            <Typography variant="caption" color="text.secondary">
-              Tip: hold teleop buttons to keep moving CEAbot.
-            </Typography>
+            {/* Backward */}
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={!joystickEnabled}
+              onMouseDown={() => startContinuousCmd(-10, -10)}
+              onMouseUp={stopContinuousCmd}
+              onMouseLeave={stopContinuousCmd}
+              onTouchStart={() => startContinuousCmd(-10, -10)}
+              onTouchEnd={stopContinuousCmd}
+              sx={{ flex: 1, fontSize: 20 }}
+            >
+              Backward
+            </Button>
           </Stack>
-        </Paper>
-      </Grid>
+          {/* Right */}
+          <Button
+            variant="contained"
+            fullWidth
+            disabled={!joystickEnabled}
+            sx={{
+              textTransform: "none",
+              width: "25%",
+              fontSize: 20,
+              borderTopRightRadius: 100,
+              borderBottomRightRadius: 100,
+            }}
+            onMouseDown={handleRightPress}
+            onMouseUp={stopContinuousCmd}
+            onMouseLeave={stopContinuousCmd}
+            onTouchStart={handleRightPress}
+            onTouchEnd={stopContinuousCmd}
+          >
+            {steerMode === "ackermann" ? `+${STEER_STEP_DEG}°` : "Right"}
+          </Button>
+        </Stack>
 
-      {/* RIGHT COLUMN (50%) */}
-      <Grid item xs={12} sm={6}>
-        <Paper
-          variant="outlined"
-          sx={{ p: 2, borderRadius: 2, minHeight: 300 }}
-        >
-          <Typography sx={{ fontWeight: 800 }}>
-            Feedback / Auto Controls
-          </Typography>
-          <Typography variant="body2" color="text.secondary"></Typography>
-        </Paper>
-      </Grid>
-    </Grid>
+        <Typography variant="body1" sx={{ pt: 1.5 }}>
+          Current steering angle:{" "}
+          {steerMode === "ackermann" ? <b>{steerDeg - 90}°</b> : <b>0°</b>}
+        </Typography>
+
+        <Typography variant="caption" color="text.secondary">
+          Tip: hold teleop buttons to keep moving CEAbot.
+        </Typography>
+      </Stack>
+    </Paper>
   );
 }

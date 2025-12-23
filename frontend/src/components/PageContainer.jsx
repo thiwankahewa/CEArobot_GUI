@@ -13,7 +13,7 @@ export default function PageContainer({ children }) {
         width: "100vw",
       }}
     >
-      <Box sx={{ height: "100%", overflow: "auto", p: 2, width: "100%" }}>
+      <Box sx={{ height: "100%", overflow: "auto", p: 3, width: "100%" }}>
         {children}
       </Box>
     </Box>

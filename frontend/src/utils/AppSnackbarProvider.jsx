@@ -46,7 +46,7 @@ export function AppSnackbarProvider({ children }) {
         }}
         sx={{
           "&.MuiSnackbar-anchorOriginBottomCenter": {
-            bottom: 10, // px
+            bottom: 6, // px
           },
         }}
       >
@@ -56,10 +56,13 @@ export function AppSnackbarProvider({ children }) {
           sx={{
             fontWeight: 600,
             borderRadius: 20,
-            px: 5,
-            minWidth: 280,
-            padding:2.2,
-            fontSize:18
+            padding: 2.2,
+            fontSize: 18,
+            width: 752,
+            "& .MuiAlert-message": {
+              width: "100%",
+              textAlign: "center",
+            },
           }}
         >
           {message}
