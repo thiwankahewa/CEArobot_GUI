@@ -2,8 +2,8 @@ import * as React from "react";
 import { AppBar, Toolbar, Stack, Button } from "@mui/material";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import StatusChip from "./StatusChip";
-import { useAppDialog } from "../utils/AppDialogProvider.jsx";
-import { useAppSnackbar } from "../utils/AppSnackbarProvider";
+import { useAppDialog } from "../ui/AppDialogProvider";
+import { useAppSnackbar } from "../ui/AppSnackbarProvider";
 
 export default function TopStatusBar({
   status,

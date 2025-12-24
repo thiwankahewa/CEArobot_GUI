@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Slider, Stack, Typography, Chip } from "@mui/material";
+import { Slider, Stack } from "@mui/material";
 import SettingRow from "./SettingRow";
-import { useDebouncedCallback } from "./useDebouncedCallback";
+import { useDebouncedCallback } from "../utils/useDebouncedCallback";
 
 export default function SettingSlider({
   title,
@@ -13,7 +13,7 @@ export default function SettingSlider({
   step = 1,
   unit,
   disabled = false,
-  debounceMs = 150,
+  debounceMs = 300,
 }) {
   const [local, setLocal] = React.useState(value ?? min ?? 0);
 
@@ -25,19 +25,17 @@ export default function SettingSlider({
     onChangeCommitted(v);
   }, debounceMs);
 
+  const rangeText = `${min} ${unit ?? ""} — ${max} ${
+    unit ?? ""
+  } (step ${step} ${unit ?? ""})`;
+
+  const fullDescription = [description?.trim(), rangeText]
+    .filter(Boolean)
+    .join("\n\n");
+
   return (
-    <SettingRow
-      title={title}
-      description={description}
-      disabled={disabled}
-      right={
-        <Chip
-          label={`${local}${unit ?? ""}`}
-          sx={{ fontWeight: 900, fontSize: 16, px: 1.2, borderRadius: 2 }}
-        />
-      }
-    >
-      <Stack spacing={1}>
+    <SettingRow title={title} description={fullDescription} disabled={disabled}>
+      <Stack spacing={1} direction={"row"} sx={{ pt: 2.5 }}>
         <Slider
           value={local}
           min={min}
@@ -48,13 +46,9 @@ export default function SettingSlider({
             setLocal(v);
             debouncedCommit(v);
           }}
+          sx={{ width: 500 }}
+          valueLabelDisplay="on"
         />
-        <Typography variant="caption" color="text.secondary">
-          {min}
-          {unit ?? ""} — {max}
-          {unit ?? ""} (step {step}
-          {unit ?? ""})
-        </Typography>
       </Stack>
     </SettingRow>
   );

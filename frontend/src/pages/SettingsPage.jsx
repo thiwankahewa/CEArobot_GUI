@@ -3,12 +3,12 @@ import { Box, Paper, Stack, Typography, Button, Divider } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import UndoIcon from "@mui/icons-material/Undo";
 
-import SettingToggle from "../utils/SettingToggle";
-import SettingNumber from "../utils/SettingNumber";
-import SettingSlider from "../utils/SettingSlider";
+import SettingToggle from "../ui/SettingToggle";
+import SettingNumber from "../ui/SettingNumber";
+import SettingSlider from "../ui/SettingSlider";
 
 import { deepEqual, setByPath } from "../utils/configUtils";
-import { useAppSnackbar } from "../utils/AppSnackbarProvider";
+import { useAppSnackbar } from "../ui/AppSnackbarProvider";
 
 import { setRos2Param } from "../ros/setRos2Param";
 import { callTrigger } from "../ros/callTrigger";
@@ -209,7 +209,7 @@ export default function SettingsPage({ ros, connected, estopActive }) {
             min={0}
             max={10}
             step={0.1}
-            debounceMs={200}
+            debounceMs={1000}
             onChangeCommitted={(v) => updateSetting("pid.kp", v, "pid.kp")}
           />
         </Stack>

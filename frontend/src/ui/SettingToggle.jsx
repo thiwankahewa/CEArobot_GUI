@@ -23,6 +23,7 @@ export default function SettingToggle({
         fullWidth
         sx={{
           borderRadius: 2,
+          width: 400,
           "& .MuiToggleButton-root": {
             textTransform: "none",
           },

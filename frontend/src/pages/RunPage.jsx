@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 
 import { useRosTopics } from "../ros/useRosTopics";
-import { useAppSnackbar } from "../utils/AppSnackbarProvider";
+import { useAppSnackbar } from "../ui/AppSnackbarProvider";
 
 const STEER_WAIT_MS = 700; // wait time after steering change
 const STEER_STEP_DEG = 5; // left/right step in steering mode
@@ -86,7 +86,9 @@ export default function RunPage({
 
   function publishMode(nextMode) {
     if (!ensureRosReady()) return;
-    if (nextMode === "auto") { publishSteer(0); }
+    if (nextMode === "auto") {
+      publishSteer(0);
+    }
     return publish("mode", { data: nextMode });
   }
 

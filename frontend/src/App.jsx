@@ -14,8 +14,8 @@ import TestPage from "./pages/TestPage";
 
 import { useRos } from "./ros/useRos";
 import { ROSBRIDGE_DEFAULT_URL } from "./ros/config";
-import { useAppDialog } from "./utils/AppDialogProvider.jsx";
-import { useAppSnackbar } from "./utils/AppSnackbarProvider.jsx";
+import { useAppDialog } from "./ui/AppDialogProvider.jsx";
+import { useAppSnackbar } from "./ui/AppSnackbarProvider.jsx";
 import { useRosTopics } from "./ros/useRosTopics";
 
 export default function App() {

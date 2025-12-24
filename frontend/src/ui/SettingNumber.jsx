@@ -60,51 +60,46 @@ export default function SettingNumber({
     .join("\n\n");
 
   return (
-    <SettingRow
-      title={title}
-      description={fullDescription}
-      disabled={disabled}
-      right={
-        <Stack direction="row" spacing={2} alignItems="center">
-          <IconButton disabled={disabled} onClick={dec} size="large">
-            <RemoveIcon />
-          </IconButton>
+    <SettingRow title={title} description={fullDescription} disabled={disabled}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <IconButton disabled={disabled} onClick={dec} size="large">
+          <RemoveIcon />
+        </IconButton>
 
-          <TextField
-            value={local}
-            disabled={disabled}
-            onChange={(e) => setLocal(e.target.value)}
-            onBlur={commitLocal}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
-            }}
-            inputProps={{
-              style: {
-                textAlign: "center",
-                fontWeight: 800,
-                fontSize: 18,
-                width: 90,
-              },
-              inputMode: "decimal",
-            }}
-            size="small"
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-            InputProps={{
-              endAdornment: unit ? (
-                <InputAdornment position="end">
-                  <Typography sx={{ fontWeight: 800 }}>{unit}</Typography>
-                </InputAdornment>
-              ) : null,
-            }}
-          />
+        <TextField
+          value={local}
+          disabled={disabled}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={commitLocal}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+          inputProps={{
+            style: {
+              textAlign: "center",
+              fontWeight: 600,
+              fontSize: 18,
+              width: 90,
+            },
+            inputMode: "decimal",
+          }}
+          size="small"
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 25 } }}
+          InputProps={{
+            endAdornment: unit ? (
+              <InputAdornment position="end">
+                <Typography sx={{ fontWeight: 600 }}>{unit}</Typography>
+              </InputAdornment>
+            ) : null,
+          }}
+        />
 
-          <IconButton disabled={disabled} onClick={inc} size="large">
-            <AddIcon />
-          </IconButton>
-        </Stack>
-      }
-    ></SettingRow>
+        <IconButton disabled={disabled} onClick={inc} size="large">
+          <AddIcon />
+        </IconButton>
+      </Stack>
+    </SettingRow>
   );
 }
