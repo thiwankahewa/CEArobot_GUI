@@ -1,125 +1,108 @@
 import * as React from "react";
 import { Box, Paper, Stack, Typography, Button, Divider } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SaveIcon from "@mui/icons-material/Save";
 import UndoIcon from "@mui/icons-material/Undo";
-
 import SettingToggle from "../ui/SettingToggle";
 import SettingNumber from "../ui/SettingNumber";
 import SettingSlider from "../ui/SettingSlider";
 
-import { deepEqual, setByPath } from "../utils/configUtils";
+import {
+  deepEqual,
+  setByPath,
+  schemaToMap,
+  configDiffToRosUpdates,
+  groupUpdatesByNode,
+} from "../utils/configUtils";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
-
 import { setRos2Param } from "../ros/setRos2Param";
+import { setRos2ParamsBatch } from "../ros/setRos2ParamsBatch";
 import { callTrigger } from "../ros/callTrigger";
+import { SETTINGS_SCHEMA } from "../utils/schema";
+import { SETTING_GROUPS } from "../utils/settingsGroups";
 
-// Minimal config with 1 setting of each type
-const DEFAULT_CONFIG = {
-  drive: { mode: "manual" }, // Toggle
-  limits: { maxRpm: 20 }, // Number stepper
-  pid: { kp: 1.2 }, // Slider
-};
+const { paramNameToType, paramNameToNode } = schemaToMap(SETTINGS_SCHEMA);
 
-// ✅ For now send all settings to ONE node (easy backend)
-// Later you can route each param to different nodes.
-const SETTINGS_NODE = "/settings_server";
+export default function SettingsPage({
+  ros,
+  connected,
+  config,
+  setConfig,
+  initialConfig,
+  setInitialConfig,
+}) {
+  const [saving, setSaving] = React.useState(false);
 
-// Map UI "rosParamName" -> node (later expand this)
-function routeNodeForParam(_rosParamName) {
-  return SETTINGS_NODE;
-}
-
-export default function SettingsPage({ ros, connected, estopActive }) {
   const notify = useAppSnackbar();
-  const disabled = !connected || estopActive;
-
-  const [initialConfig, setInitialConfig] = React.useState(DEFAULT_CONFIG);
-  const [config, setConfig] = React.useState(DEFAULT_CONFIG);
-
   const dirty = !deepEqual(config, initialConfig);
 
-  // ✅ Real setParam using ROS2 parameter service
-  async function setParam(rosParamName, value) {
-    if (!ros || !connected) throw new Error("ROS not connected");
-
-    const nodeName = routeNodeForParam(rosParamName);
-
-    await setRos2Param({
-      ros,
-      nodeName,
-      paramName: rosParamName,
-      value,
-    });
-  }
-
-  // ✅ Save to YAML using Trigger service (backend saver node)
-  async function saveToYaml() {
-    if (!ros || !connected) throw new Error("ROS not connected");
-
-    // If you used /settings/save_all in the saver node:
-    const res = await callTrigger({ ros, serviceName: "/settings/save_all" });
-    return res;
-  }
-
-  // ---- Load initial settings from robot (placeholder) ----
-  React.useEffect(() => {
-    // Later: read parameters from robot and fill initialConfig + config
-    setInitialConfig(DEFAULT_CONFIG);
-    setConfig(DEFAULT_CONFIG);
-  }, []);
-
-  // ---- Update UI + send realtime param update ----
-  async function updateSetting(path, value, rosParamName) {
-    setConfig((prev) => setByPath(prev, path, value));
-
+  async function updateSetting(paramName, value) {
+    setConfig((prev) => setByPath(prev, paramName, value));
     try {
-      await setParam(rosParamName, value);
-      // optional small toast:
-      // notify.success(`${rosParamName} updated`, { duration: 600 });
+      if (!ros || !connected) throw new Error("ROS not connected");
+      const nodeName = paramNameToNode[paramName];
+      const type = paramNameToType[paramName];
+      await setRos2Param({ ros, nodeName, paramName, value, type });
     } catch (e) {
-      notify.error(e?.message || `Failed to set ${rosParamName}`);
+      notify.error(e?.message);
     }
   }
 
   async function handleSave() {
+    if (!ros || !connected) throw new Error("ROS not connected");
+
     try {
-      const res = await saveToYaml();
+      setSaving(true);
+      const res = await callTrigger({ ros, serviceName: "/settings/save_all" });
       if (!res.success) throw new Error(res.message);
 
-      setInitialConfig(config); // mark as saved baseline
-      notify.success(res.message || "Settings saved");
+      setInitialConfig(config);
+      notify.success("Settings sucessfully saved");
     } catch (e) {
-      notify.error(e?.message || "Save failed");
+      notify.error(e?.message);
+    } finally {
+      setSaving(false);
     }
   }
 
   async function handleRevert() {
     setConfig(initialConfig);
-    notify.info("Reverted changes");
-
-    // Optional: push reverted values back to robot (simple version)
     try {
-      await setParam("drive.mode", initialConfig.drive.mode);
-      await setParam("limits.max_rpm", initialConfig.limits.maxRpm);
-      await setParam("pid.kp", initialConfig.pid.kp);
+      const updates = configDiffToRosUpdates(
+        config,
+        initialConfig,
+        SETTINGS_SCHEMA
+      );
+
+      const updatesByNode = groupUpdatesByNode(updates, paramNameToNode);
+      for (const [nodeName, nodeUpdates] of Object.entries(updatesByNode)) {
+        await setRos2ParamsBatch({
+          ros,
+          nodeName,
+          updates: nodeUpdates,
+          paramNameToType,
+        });
+      }
+      notify.success("Reset settings on robot");
     } catch (e) {
-      notify.error(e?.message || "Failed to revert on robot");
+      console.log(e);
+      notify.error(e?.message);
     }
   }
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Sticky Save Row */}
       <Paper
         variant="outlined"
         sx={{
           position: "sticky",
-          top: 0,
-          zIndex: 2,
           p: 1.5,
           borderRadius: 2,
           mb: 2,
-          backdropFilter: "blur(6px)",
         }}
       >
         <Stack
@@ -129,13 +112,11 @@ export default function SettingsPage({ ros, connected, estopActive }) {
           justifyContent="space-between"
         >
           <Stack spacing={0.2}>
-            <Typography sx={{ fontWeight: 900, fontSize: 16 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 16 }}>
               Settings
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {dirty ? "Unsaved changes" : "All changes saved"}
-              {estopActive ? " • E-STOP active" : ""}
-              {!connected ? " • Not connected" : ""}
             </Typography>
           </Stack>
 
@@ -143,19 +124,25 @@ export default function SettingsPage({ ros, connected, estopActive }) {
             <Button
               startIcon={<UndoIcon />}
               variant="outlined"
-              disabled={!dirty || disabled}
+              disabled={!dirty || !connected}
               onClick={handleRevert}
-              sx={{ textTransform: "none", borderRadius: 2 }}
+              sx={{ textTransform: "none", borderRadius: 10 }}
             >
               Revert
             </Button>
 
             <Button
-              startIcon={<SaveIcon />}
+              startIcon={
+                saving ? (
+                  <CircularProgress size={18} color="inherit" />
+                ) : (
+                  <SaveIcon />
+                )
+              }
               variant="contained"
-              disabled={!dirty || disabled}
+              disabled={saving || !dirty || !connected}
               onClick={handleSave}
-              sx={{ textTransform: "none", borderRadius: 2, fontWeight: 900 }}
+              sx={{ textTransform: "none", borderRadius: 10, px: 3 }}
             >
               Save
             </Button>
@@ -163,57 +150,72 @@ export default function SettingsPage({ ros, connected, estopActive }) {
         </Stack>
       </Paper>
 
-      {/* Scroll area for settings */}
-      <Paper
-        variant="outlined"
-        sx={{ p: 2, borderRadius: 2, flex: 1, overflow: "auto" }}
-      >
-        <Typography sx={{ fontWeight: 900, mb: 1 }}>Basic</Typography>
-        <Divider sx={{ mb: 2 }} />
+      {SETTING_GROUPS.map((group) => (
+        <Accordion key={group.key} sx={{ borderRadius: 2, mb: 2 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography sx={{ fontWeight: 600 }}>{group.title}</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              {group.children.map((item) => {
+                const value = item.path
+                  .split(".")
+                  .reduce((o, k) => o?.[k], config);
 
-        <Stack spacing={2}>
-          {/* Toggle */}
-          <SettingToggle
-            title="Drive Mode"
-            description="Manual vs Auto mode"
-            value={config.drive.mode}
-            disabled={disabled}
-            options={[
-              { value: "manual", label: "Manual" },
-              { value: "auto", label: "Auto" },
-            ]}
-            onChange={(v) => updateSetting("drive.mode", v, "drive.mode")}
-          />
+                switch (item.type) {
+                  case "toggle":
+                    return (
+                      <SettingToggle
+                        key={item.path}
+                        title={item.title}
+                        description={item.description}
+                        value={value}
+                        disabled={!connected}
+                        options={item.options}
+                        onChange={(v) => updateSetting(item.path, v)}
+                      />
+                    );
 
-          {/* Number */}
-          <SettingNumber
-            title="Max RPM"
-            description="Speed limit for manual control"
-            value={config.limits.maxRpm}
-            disabled={disabled}
-            min={0}
-            max={60}
-            step={1}
-            unit="rpm"
-            onChange={(v) =>
-              updateSetting("limits.maxRpm", v, "limits.max_rpm")
-            }
-          />
+                  case "number":
+                    return (
+                      <SettingNumber
+                        key={item.path}
+                        title={item.title}
+                        description={item.description}
+                        value={value}
+                        disabled={!connected}
+                        min={item.min}
+                        max={item.max}
+                        step={item.step}
+                        unit={item.unit}
+                        onChange={(v) => updateSetting(item.path, v)}
+                      />
+                    );
 
-          {/* Slider */}
-          <SettingSlider
-            title="PID Kp"
-            description="Proportional gain"
-            value={config.pid.kp}
-            disabled={disabled}
-            min={0}
-            max={10}
-            step={0.1}
-            debounceMs={1000}
-            onChangeCommitted={(v) => updateSetting("pid.kp", v, "pid.kp")}
-          />
-        </Stack>
-      </Paper>
+                  case "slider":
+                    return (
+                      <SettingSlider
+                        key={item.path}
+                        title={item.title}
+                        description={item.description}
+                        value={value}
+                        disabled={!connected}
+                        min={item.min}
+                        max={item.max}
+                        step={item.step}
+                        debounceMs={item.debounceMs}
+                        onChangeCommitted={(v) => updateSetting(item.path, v)}
+                      />
+                    );
+
+                  default:
+                    return null;
+                }
+              })}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+      ))}
     </Box>
   );
 }

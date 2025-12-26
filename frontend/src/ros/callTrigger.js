@@ -7,7 +7,7 @@ export function callTrigger({ ros, serviceName }) {
     serviceType: "std_srvs/srv/Trigger",
   });
 
-  const req = new ROSLIB.ServiceRequest({});
+  const req = {};
 
   return new Promise((resolve, reject) => {
     srv.callService(

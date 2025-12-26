@@ -34,7 +34,7 @@ export default function SettingRow({ title, description, disabled, children }) {
       }}
     >
       <Stack direction="row" spacing={2} alignItems="center">
-        <Typography sx={{ fontWeight: 800, fontSize: 16, flexGrow: 1 }} noWrap>
+        <Typography sx={{ fontWeight: 600, fontSize: 16, flexGrow: 1 }} noWrap>
           {title}
         </Typography>
 
@@ -49,6 +49,7 @@ export default function SettingRow({ title, description, disabled, children }) {
           top: 8,
           right: 8,
         }}
+        color="primary"
       >
         <InfoOutlinedIcon />
       </IconButton>

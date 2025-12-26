@@ -1,8 +1,6 @@
 import * as ROSLIB from "roslib";
 
-/*
-ROS 2 parameter type enum (from rcl_interfaces/msg/ParameterType)
-*/
+//ROS 2 parameter type enum (from rcl_interfaces/msg/ParameterType)
 const PARAMETER_TYPE = {
   BOOL: 1,
   INTEGER: 2,
@@ -10,64 +8,56 @@ const PARAMETER_TYPE = {
   STRING: 4,
 };
 
-/*
-Infer ROS 2 parameter type from JS value
-*/
-function inferType(value) {
-  if (typeof value === "boolean") return PARAMETER_TYPE.BOOL;
-  if (typeof value === "number") {
-    return Number.isInteger(value)
-      ? PARAMETER_TYPE.INTEGER
-      : PARAMETER_TYPE.DOUBLE;
+//Infer ROS 2 parameter type from JS value
+function toTypeEnum(typeStr, value) {
+  switch (typeStr) {
+    case "bool":
+      return PARAMETER_TYPE.BOOL;
+    case "int":
+      return PARAMETER_TYPE.INTEGER;
+    case "double":
+      return PARAMETER_TYPE.DOUBLE;
+    case "string":
+      return PARAMETER_TYPE.STRING;
+    default:
+      throw new Error(`Unsupported schema type: ${typeStr}`);
   }
-  if (typeof value === "string") return PARAMETER_TYPE.STRING;
-
-  throw new Error(`Unsupported parameter type: ${typeof value}`);
 }
 
-/*
-Set ONE ROS 2 parameter
-*/
-export function setRos2Param({
-  ros,
-  nodeName, // e.g. "/settings_server"
-  paramName, // e.g. "pid.kp"
-  value,
-}) {
-  if (!ros) {
-    return Promise.reject(new Error("ROS not connected"));
-  }
+function buildParamValue(typeEnum, value) {
+  return {
+    type: typeEnum,
+    bool_value: typeEnum === PARAMETER_TYPE.BOOL ? Boolean(value) : false,
+    integer_value: typeEnum === PARAMETER_TYPE.INTEGER ? Number(value) : 0,
+    double_value: typeEnum === PARAMETER_TYPE.DOUBLE ? Number(value) : 0.0,
+    string_value: typeEnum === PARAMETER_TYPE.STRING ? String(value) : "",
+  };
+}
 
+export function setRos2Param({ ros, nodeName, paramName, value, type }) {
   const service = new ROSLIB.Service({
     ros,
     name: `${nodeName}/set_parameters`,
     serviceType: "rcl_interfaces/srv/SetParameters",
   });
 
-  const type = inferType(value);
+  const typeEnum = toTypeEnum(type, value);
 
-  const parameterValue = {
-    type,
-    bool_value: type === PARAMETER_TYPE.BOOL ? value : false,
-    integer_value: type === PARAMETER_TYPE.INTEGER ? value : 0,
-    double_value: type === PARAMETER_TYPE.DOUBLE ? value : 0.0,
-    string_value: type === PARAMETER_TYPE.STRING ? value : "",
-  };
-
-  const request = new ROSLIB.ServiceRequest({
+  const request = {
     parameters: [
       {
         name: paramName,
-        value: parameterValue,
+        value: buildParamValue(typeEnum, value),
       },
     ],
-  });
+  };
 
   return new Promise((resolve, reject) => {
     service.callService(
       request,
       (response) => {
         const result = response?.results?.[0];
+
         if (!result) {
           reject(new Error("Invalid parameter service response"));
           return;
@@ -76,11 +66,12 @@ export function setRos2Param({
         if (result.successful) {
           resolve(true);
         } else {
-          reject(new Error(result.reason || "Parameter rejected"));
+          reject(new Error(result.reason));
+          console.log(result.reason);
         }
       },
       (error) => {
-        reject(new Error(error?.message || "Service call failed"));
+        reject(new Error(error?.message));
       }
     );
   });
