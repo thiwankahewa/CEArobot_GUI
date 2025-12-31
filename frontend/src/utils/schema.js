@@ -18,4 +18,41 @@ export const SETTINGS_SCHEMA = [
     type: "double",
     default: 1.5,
   },
+  /*bench_tracker*/
+  {
+    paramName: "Kp_offset",
+    node: "/bench_tracker",
+    type: "double",
+    default: 0.005,
+  },
+  {
+    paramName: "Kp_yaw",
+    node: "/bench_tracker",
+    type: "double",
+    default: 0.005,
+  },
+  {
+    paramName: "base_rpm",
+    node: "/bench_tracker",
+    type: "int",
+    default: 12,
+  },
+  {
+    paramName: "max_rpm",
+    node: "/bench_tracker",
+    type: "int",
+    default: 25,
+  },
+  {
+    paramName: "k_steer",
+    node: "/bench_tracker",
+    type: "double",
+    default: 100.0,
+  },
+  {
+    paramName: "max_steer_deg",
+    node: "/bench_tracker",
+    type: "double",
+    default: 25.0,
+  },
 ];

@@ -27,6 +27,17 @@ import { SETTING_GROUPS } from "../utils/settingsGroups";
 
 const { paramNameToType, paramNameToNode } = schemaToMap(SETTINGS_SCHEMA);
 
+function roundByStep(value, step) {
+  if (!step) return value;
+
+  const stepStr = step.toString();
+  const decimals = stepStr.includes(".")
+    ? stepStr.split(".")[1].length
+    : 0;
+
+  return Number(value.toFixed(decimals));
+}
+
 export default function SettingsPage({
   ros,
   connected,
@@ -153,7 +164,7 @@ export default function SettingsPage({
       {SETTING_GROUPS.map((group) => (
         <Accordion key={group.key} sx={{ borderRadius: 2, mb: 2 }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600 }}>{group.title}</Typography>
+            <Typography sx={{ fontWeight: 600}}>{group.title}</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2}>
@@ -188,7 +199,7 @@ export default function SettingsPage({
                         max={item.max}
                         step={item.step}
                         unit={item.unit}
-                        onChange={(v) => updateSetting(item.path, v)}
+                        onChange={(v) => updateSetting(item.path, roundByStep(v, item.step))}
                       />
                     );
 
