@@ -61,11 +61,6 @@ export default function BottomNav({ value, onChange }) {
           icon={<ListAltIcon />}
           sx={{ scale: 1.15 }}
         />
-        <BottomNavigationAction
-          label="Test"
-          icon={<BuildIcon />}
-          sx={{ scale: 1.15 }}
-        />
       </BottomNavigation>
     </Paper>
   );
