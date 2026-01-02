@@ -23,6 +23,7 @@ import {
   schemaToDefaultConfig,
 } from "./utils/configUtils";
 import { SETTINGS_SCHEMA } from "./utils/schema";
+import { LogsProvider } from "./ui/LogsCatcher.jsx";
 
 const DEFAULT_CONFIG = schemaToDefaultConfig(SETTINGS_SCHEMA);
 
@@ -167,7 +168,9 @@ export default function App() {
         disconnect={disconnect}
         mode={runUi.mode}
       />
-      <PageContainer>{pages[tab]}</PageContainer>
+      <LogsProvider ros={ros} connected={connected}>
+        <PageContainer>{pages[tab]}</PageContainer>
+      </LogsProvider>
       <BottomNav value={tab} onChange={handleTabChange} />
       <Fab
         variant="extended"

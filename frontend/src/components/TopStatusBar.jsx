@@ -4,7 +4,6 @@ import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import StatusChip from "./StatusChip";
 import { useAppDialog } from "../ui/AppDialogProvider";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
-import { useLogs } from "../ui/LogsProvider";
 
 export default function TopStatusBar({
   status,
@@ -16,7 +15,6 @@ export default function TopStatusBar({
 }) {
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
-  const { status: logsStatus } = useLogs();
 
   const handleConnectionClick = () => {
     if (!connected) {
@@ -55,23 +53,11 @@ export default function TopStatusBar({
     });
   }
 
-  const logsChipColor =
-    logsStatus === "connected"
-      ? "success"
-      : logsStatus === "connecting"
-      ? "warning"
-      : "default";
-
   return (
     <>
       <AppBar position="fixed" elevation={1}>
         <Toolbar sx={{ backgroundColor: "#dce2e8ff" }}>
           <Stack direction="row" spacing={1} sx={{ flex: 1, overflow: "auto" }}>
-            <StatusChip
-              label={`Logs: ${logsStatus}`}
-              color={logsChipColor}
-              variant="outlined"
-            />
             <StatusChip
               label={`Mode: ${mode === "manual" ? "Manual" : "Auto"}`}
               color="primary"

@@ -14,7 +14,19 @@ import {
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material/Select";
 
-import { useLogs } from "../ui/LogsProvider"; // <-- adjust path if needed
+import { useLogs } from "../ui/LogsCatcher";
+
+type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL" | string;
+
+type LogItem = {
+  ts_ns: number;
+  level: LogLevel;
+  name: string;
+  msg: string;
+  file?: string;
+  function?: string;
+  line?: number;
+};
 
 function formatTime(ts_ns: number) {
   const d = new Date(Math.floor(ts_ns / 1_000_000));
@@ -22,23 +34,25 @@ function formatTime(ts_ns: number) {
 }
 
 export default function LogsPage() {
-  const { status, logs, clear } = useLogs(); // logs: LogItem[]
+  const { status, logs, clear } = useLogs() as {
+    status: "connected" | "connecting" | "disconnected";
+    logs: LogItem[];
+    clear: () => void;
+  };
 
   const [text, setText] = React.useState("");
-  const [node, setNode] = React.useState<string>(""); // "" => all nodes
-  const [level, setLevel] = React.useState<string>(""); // "" => all levels
+  const [node, setNode] = React.useState<string>("");
+  const [level, setLevel] = React.useState<string>("");
   const [autoScroll, setAutoScroll] = React.useState(true);
 
   const preRef = React.useRef<HTMLPreElement | null>(null);
 
-  // Build unique node list from logs
   const nodeOptions = React.useMemo(() => {
     const set = new Set<string>();
     for (const l of logs) set.add(l.name);
     return Array.from(set).sort();
   }, [logs]);
 
-  // Optional: counts per node
   const nodeCounts = React.useMemo(() => {
     const m = new Map<string, number>();
     for (const l of logs) m.set(l.name, (m.get(l.name) ?? 0) + 1);
@@ -65,7 +79,6 @@ export default function LogsPage() {
     });
   }, [logs, text, node, level]);
 
-  // Auto scroll
   React.useEffect(() => {
     if (!autoScroll) return;
     const el = preRef.current;
@@ -82,14 +95,10 @@ export default function LogsPage() {
   return (
     <Stack spacing={2}>
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          sx={{ mb: 1, alignItems: "center" }}
-        >
+        <Stack direction="row" spacing={1}>
           <TextField
             size="small"
-            label="Text filter"
+            label="Search text"
             fullWidth
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -140,18 +149,10 @@ export default function LogsPage() {
             </Select>
           </FormControl>
 
-          <Button
-            variant="outlined"
-            onClick={resetFilters}
-            sx={{ borderRadius: 10, px: 4 }}
-          >
+          <Button variant="outlined" onClick={resetFilters}>
             Reset
           </Button>
-          <Button
-            variant="outlined"
-            onClick={clear}
-            sx={{ borderRadius: 10, px: 5 }}
-          >
+          <Button variant="contained" onClick={clear}>
             Clear
           </Button>
         </Stack>
@@ -172,12 +173,12 @@ export default function LogsPage() {
           ref={preRef as any}
           sx={{
             m: 0,
-            p: 2,
+            p: 1,
             borderRadius: 2,
             bgcolor: "grey.900",
             color: "grey.100",
             overflow: "auto",
-            height: 470,
+            height: 475,
             fontSize: 12,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
