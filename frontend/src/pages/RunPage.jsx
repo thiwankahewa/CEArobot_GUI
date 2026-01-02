@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  Grid,
+  IconButton,
   Paper,
   Stack,
   Button,
@@ -9,6 +9,9 @@ import {
   Typography,
   Divider,
 } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import StopIcon from "@mui/icons-material/Stop";
 
 import { useRosTopics } from "../ros/useRosTopics";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
@@ -26,9 +29,11 @@ export default function RunPage({
   estopActive,
 }) {
   const mode = runUi.mode;
+  const autoMode = runUi.autoMode;
   const steerMode = runUi.steerMode;
   const steerDeg = runUi.steerAngleDeg;
   const setMode = (v) => setRunUi((s) => ({ ...s, mode: v }));
+  const setAutoMode = (v) => setRunUi((s) => ({ ...s, autoMode: v }));
   const setSteerMode = (v) => setRunUi((s) => ({ ...s, steerMode: v }));
   const setSteerDeg = (v) => setRunUi((s) => ({ ...s, steerAngleDeg: v }));
 
@@ -90,6 +95,11 @@ export default function RunPage({
       publishSteer(0);
     }
     return publish("mode", { data: nextMode });
+  }
+
+  function publishAutoMode(nextMode) {
+    if (!ensureRosReady()) return;
+    return publish("autoMode", { data: nextMode });
   }
 
   function stopContinuousCmd() {
@@ -182,166 +192,260 @@ export default function RunPage({
   }, []);
 
   return (
-    <Paper variant="outlined" sx={{ p: 1.5, width: "33%" }}>
-      <Stack spacing={3}>
-        <Typography variant="body1"> Drive mode </Typography>
-        <ToggleButtonGroup
-          value={mode}
-          disabled={estopActive}
-          exclusive
-          onChange={(_, v) => {
-            if (!v) return;
-            setMode(v);
-            stopContinuousCmd();
-            publishMode(v);
-          }}
-          fullWidth
-          sx={{
-            "& .MuiToggleButton-root": { textTransform: "none" },
-            height: 60,
-            "& .MuiToggleButton-root:first-of-type": {
-              borderTopLeftRadius: 50,
-              borderBottomLeftRadius: 50,
-            },
-
-            // Last button
-            "& .MuiToggleButton-root:last-of-type": {
-              borderTopRightRadius: 50,
-              borderBottomRightRadius: 50,
-            },
-          }}
-        >
-          <ToggleButton value="manual" sx={{ fontSize: 20 }}>
-            Manual
-          </ToggleButton>
-          <ToggleButton value="auto" sx={{ fontSize: 20 }}>
-            Auto
-          </ToggleButton>
-        </ToggleButtonGroup>
-
-        <Typography variant="body1">Steering mode</Typography>
-
-        <ToggleButtonGroup
-          value={steerMode}
-          exclusive
-          onChange={(_, v) => {
-            if (!v) return;
-            setSteeringMode(v);
-          }}
-          disabled={!isManual || steerBusy}
-          fullWidth
-          sx={{
-            "& .MuiToggleButton-root": { textTransform: "none" },
-            height: 60,
-            "& .MuiToggleButton-root:first-of-type": {
-              borderTopLeftRadius: 50,
-              borderBottomLeftRadius: 50,
-            },
-
-            // Last button
-            "& .MuiToggleButton-root:last-of-type": {
-              borderTopRightRadius: 50,
-              borderBottomRightRadius: 50,
-            },
-          }}
-        >
-          <ToggleButton value="diff" sx={{ fontSize: 20 }}>
-            Diff
-          </ToggleButton>
-          <ToggleButton value="ackermann" sx={{ fontSize: 20 }}>
-            Ackermann
-          </ToggleButton>
-        </ToggleButtonGroup>
-
-        <Divider />
-
-        <Stack
-          spacing={1}
-          alignItems="stretch"
-          direction="row"
-          sx={{ height: 150 }}
-        >
-          {/* Forward */}
-          <Button
-            variant="contained"
-            fullWidth
-            disabled={!joystickEnabled}
-            sx={{
-              textTransform: "none",
-              width: "25%",
-              fontSize: 20,
-              borderTopLeftRadius: 100,
-              borderBottomLeftRadius: 100,
+    <Stack spacing={2} direction="row">
+      <Paper variant="outlined" sx={{ p: 1.5, width: "33%" }}>
+        <Stack spacing={3}>
+          <Typography variant="body1"> Drive mode </Typography>
+          <ToggleButtonGroup
+            value={mode}
+            disabled={estopActive}
+            exclusive
+            onChange={(_, v) => {
+              if (!v) return;
+              setMode(v);
+              stopContinuousCmd();
+              publishMode(v);
             }}
-            onMouseDown={handleLeftPress}
-            onMouseUp={stopContinuousCmd}
-            onMouseLeave={stopContinuousCmd}
-            onTouchStart={handleLeftPress}
-            onTouchEnd={stopContinuousCmd}
+            fullWidth
+            sx={{
+              "& .MuiToggleButton-root": { textTransform: "none" },
+              height: 60,
+              "& .MuiToggleButton-root:first-of-type": {
+                borderTopLeftRadius: 50,
+                borderBottomLeftRadius: 50,
+              },
+
+              // Last button
+              "& .MuiToggleButton-root:last-of-type": {
+                borderTopRightRadius: 50,
+                borderBottomRightRadius: 50,
+              },
+            }}
           >
-            {steerMode === "ackermann" ? `-${STEER_STEP_DEG}°` : "Left"}
-          </Button>
-          <Stack spacing={1} width="100%" sx={{ flex: 1, height: "100%" }}>
-            {/* Left */}
+            <ToggleButton value="manual" sx={{ fontSize: 20 }}>
+              Manual
+            </ToggleButton>
+            <ToggleButton value="auto" sx={{ fontSize: 20 }}>
+              Auto
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Typography variant="body1">Steering mode</Typography>
+
+          <ToggleButtonGroup
+            value={steerMode}
+            exclusive
+            onChange={(_, v) => {
+              if (!v) return;
+              setSteeringMode(v);
+            }}
+            disabled={!isManual || steerBusy}
+            fullWidth
+            sx={{
+              "& .MuiToggleButton-root": { textTransform: "none" },
+              height: 60,
+              "& .MuiToggleButton-root:first-of-type": {
+                borderTopLeftRadius: 50,
+                borderBottomLeftRadius: 50,
+              },
+
+              // Last button
+              "& .MuiToggleButton-root:last-of-type": {
+                borderTopRightRadius: 50,
+                borderBottomRightRadius: 50,
+              },
+            }}
+          >
+            <ToggleButton value="diff" sx={{ fontSize: 20 }}>
+              Diff
+            </ToggleButton>
+            <ToggleButton value="ackermann" sx={{ fontSize: 20 }}>
+              Ackermann
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Divider />
+
+          <Stack
+            spacing={1}
+            alignItems="stretch"
+            direction="row"
+            sx={{ height: 150 }}
+          >
+            {/* Forward */}
             <Button
               variant="contained"
               fullWidth
               disabled={!joystickEnabled}
-              onMouseDown={() => startContinuousCmd(10, 10)}
+              sx={{
+                textTransform: "none",
+                width: "25%",
+                fontSize: 20,
+                borderTopLeftRadius: 100,
+                borderBottomLeftRadius: 100,
+              }}
+              onMouseDown={handleLeftPress}
               onMouseUp={stopContinuousCmd}
               onMouseLeave={stopContinuousCmd}
-              onTouchStart={() => startContinuousCmd(10, 10)}
+              onTouchStart={handleLeftPress}
               onTouchEnd={stopContinuousCmd}
-              sx={{ flex: 1, fontSize: 20 }}
             >
-              Forward
+              {steerMode === "ackermann" ? `-${STEER_STEP_DEG}°` : "Left"}
             </Button>
-            {/* Backward */}
+            <Stack spacing={1} width="100%" sx={{ flex: 1, height: "100%" }}>
+              {/* Left */}
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={!joystickEnabled}
+                onMouseDown={() => startContinuousCmd(10, 10)}
+                onMouseUp={stopContinuousCmd}
+                onMouseLeave={stopContinuousCmd}
+                onTouchStart={() => startContinuousCmd(10, 10)}
+                onTouchEnd={stopContinuousCmd}
+                sx={{ flex: 1, fontSize: 20 }}
+              >
+                Forward
+              </Button>
+              {/* Backward */}
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={!joystickEnabled}
+                onMouseDown={() => startContinuousCmd(-10, -10)}
+                onMouseUp={stopContinuousCmd}
+                onMouseLeave={stopContinuousCmd}
+                onTouchStart={() => startContinuousCmd(-10, -10)}
+                onTouchEnd={stopContinuousCmd}
+                sx={{ flex: 1, fontSize: 20 }}
+              >
+                Backward
+              </Button>
+            </Stack>
+            {/* Right */}
             <Button
               variant="contained"
               fullWidth
               disabled={!joystickEnabled}
-              onMouseDown={() => startContinuousCmd(-10, -10)}
+              sx={{
+                textTransform: "none",
+                width: "25%",
+                fontSize: 20,
+                borderTopRightRadius: 100,
+                borderBottomRightRadius: 100,
+              }}
+              onMouseDown={handleRightPress}
               onMouseUp={stopContinuousCmd}
               onMouseLeave={stopContinuousCmd}
-              onTouchStart={() => startContinuousCmd(-10, -10)}
+              onTouchStart={handleRightPress}
               onTouchEnd={stopContinuousCmd}
-              sx={{ flex: 1, fontSize: 20 }}
             >
-              Backward
+              {steerMode === "ackermann" ? `+${STEER_STEP_DEG}°` : "Right"}
             </Button>
           </Stack>
-          {/* Right */}
-          <Button
-            variant="contained"
-            fullWidth
-            disabled={!joystickEnabled}
-            sx={{
-              textTransform: "none",
-              width: "25%",
-              fontSize: 20,
-              borderTopRightRadius: 100,
-              borderBottomRightRadius: 100,
-            }}
-            onMouseDown={handleRightPress}
-            onMouseUp={stopContinuousCmd}
-            onMouseLeave={stopContinuousCmd}
-            onTouchStart={handleRightPress}
-            onTouchEnd={stopContinuousCmd}
-          >
-            {steerMode === "ackermann" ? `+${STEER_STEP_DEG}°` : "Right"}
-          </Button>
+
+          <Typography variant="body1" sx={{ pt: 1.5 }}>
+            Current steering angle:{" "}
+            {steerMode === "ackermann" ? <b>{steerDeg - 90}°</b> : <b>0°</b>}
+          </Typography>
+
+          <Typography variant="caption" color="text.secondary">
+            Tip: hold teleop buttons to keep moving CEAbot.
+          </Typography>
         </Stack>
-
-        <Typography variant="body1" sx={{ pt: 1.5 }}>
-          Current steering angle:{" "}
-          {steerMode === "ackermann" ? <b>{steerDeg - 90}°</b> : <b>0°</b>}
-        </Typography>
-
-        <Typography variant="caption" color="text.secondary">
-          Tip: hold teleop buttons to keep moving CEAbot.
-        </Typography>
-      </Stack>
-    </Paper>
+      </Paper>
+      <Paper variant="outlined" sx={{ p: 1.5, width: "67%" }}>
+        <Stack spacing={3}>
+          <Stack direction="row">
+            <Typography variant="body1"> Auto mode </Typography>
+          </Stack>
+          <ToggleButtonGroup
+            value={autoMode}
+            disabled={estopActive || mode !== "auto"}
+            exclusive
+            onChange={(_, v) => {
+              if (!v) return;
+              setAutoMode(v);
+              stopContinuousCmd();
+              publishAutoMode(v);
+            }}
+            fullWidth
+            sx={{
+              "& .MuiToggleButton-root": { textTransform: "none" },
+              height: 60,
+              "& .MuiToggleButton-root:first-of-type": {
+                borderTopLeftRadius: 50,
+                borderBottomLeftRadius: 50,
+              },
+              "& .MuiToggleButton-root:last-of-type": {
+                borderTopRightRadius: 50,
+                borderBottomRightRadius: 50,
+              },
+            }}
+          >
+            <ToggleButton value="mode1" sx={{ fontSize: 20 }}>
+              Mode 1
+            </ToggleButton>
+            <ToggleButton value="mode2" sx={{ fontSize: 20 }}>
+              Mode 2
+            </ToggleButton>
+            <ToggleButton value="mode3" sx={{ fontSize: 20 }}>
+              Mode 3
+            </ToggleButton>
+            <ToggleButton value="mode4" sx={{ fontSize: 20 }}>
+              Mode 4
+            </ToggleButton>
+            <ToggleButton value="mode5" sx={{ fontSize: 20 }}>
+              Mode 5
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Stack
+            direction="row"
+            spacing={10}
+            justifyContent="center"
+            sx={{ height: 70 }}
+          >
+            <Button
+              variant="contained"
+              color="success"
+              endIcon={<PlayArrowIcon />}
+              disabled={estopActive || mode !== "auto"}
+              sx={{
+                textTransform: "none",
+                width: "40%",
+                fontSize: 20,
+                borderRadius: 25,
+              }}
+              onClick={() => {
+                if (!ensureRosReady()) return;
+                stopContinuousCmd();
+                publish("autoStart", { data: true });
+              }}
+            >
+              Start
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              endIcon={<StopIcon />}
+              disabled={estopActive || mode !== "auto"}
+              sx={{
+                textTransform: "none",
+                width: "40%",
+                fontSize: 20,
+                borderRadius: 25,
+              }}
+              onClick={() => {
+                if (!ensureRosReady()) return;
+                stopContinuousCmd();
+                publish("autoStart", { data: false });
+              }}
+            >
+              Stop
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+    </Stack>
   );
 }
