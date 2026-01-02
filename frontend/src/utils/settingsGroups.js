@@ -104,4 +104,21 @@ export const SETTING_GROUPS = [
       },
     ],
   },
+  {
+    key: "motor_control_mux",
+    title: "Manual Motor Control Settings",
+    children: [
+      {
+        type: "slider",
+        title: "Wheel Speed",
+        description: "Wheel speed in RPM",
+        path: "manual_rpm",
+        min: 1,
+        max: 25,
+        step: 1,
+        unit: "rpm",
+        debounceMs: 200,
+      },
+    ],
+  },
 ];

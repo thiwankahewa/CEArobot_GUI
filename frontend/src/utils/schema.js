@@ -55,4 +55,11 @@ export const SETTINGS_SCHEMA = [
     type: "double",
     default: 25.0,
   },
+  /*motor_control_mux*/
+  {
+    paramName: "manual_rpm",
+    node: "/motor_control_mux",
+    type: "int",
+    default: 12,
+  },
 ];

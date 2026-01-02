@@ -46,7 +46,7 @@ export default function RunPage({
       {
         key: "cmdVel",
         name: "/wheel_rpm_manual",
-        type: "std_msgs/msg/Int16MultiArray",
+        type: "std_msgs/msg/String",
         queue_size: 10,
       },
       {
@@ -79,9 +79,9 @@ export default function RunPage({
     return true;
   }
 
-  function publishRPM(LRPM, RRPM) {
+  function publishRPM(command) {
     if (!ensureRosReady()) return;
-    return publish("cmdVel", { data: [LRPM, RRPM] });
+    return publish("cmdVel", { data: command });
   }
 
   function publishSteer(deg) {
@@ -107,7 +107,7 @@ export default function RunPage({
       clearInterval(publishTimerRef.current);
       publishTimerRef.current = null;
     }
-    publishRPM(0, 0);
+    publishRPM("stop");
   }
 
   function setSteeringMode(nextMode) {
@@ -136,12 +136,12 @@ export default function RunPage({
   }
 
   // Start continuous publish (10 Hz) while button is held
-  function startContinuousCmd(LRPM, RRPM) {
+  function startContinuousCmd(command) {
     if (!isManual) return;
     stopContinuousCmd();
-    publishRPM(LRPM, RRPM);
+    publishRPM(command);
     publishTimerRef.current = setInterval(() => {
-      publishRPM(LRPM, RRPM);
+      publishRPM(command);
     }, 100);
   }
 
@@ -149,7 +149,7 @@ export default function RunPage({
     if (!joystickEnabled) return;
 
     if (steerMode === "diff") {
-      startContinuousCmd(10, -10);
+      startContinuousCmd("left");
     } else {
       changeAckAngle(-STEER_STEP_DEG);
     }
@@ -159,7 +159,7 @@ export default function RunPage({
     if (!joystickEnabled) return;
 
     if (steerMode === "diff") {
-      startContinuousCmd(-10, 10);
+      startContinuousCmd("right");
     } else {
       changeAckAngle(+STEER_STEP_DEG);
     }
@@ -298,10 +298,10 @@ export default function RunPage({
                 variant="contained"
                 fullWidth
                 disabled={!joystickEnabled}
-                onMouseDown={() => startContinuousCmd(10, 10)}
+                onMouseDown={() => startContinuousCmd("forward")}
                 onMouseUp={stopContinuousCmd}
                 onMouseLeave={stopContinuousCmd}
-                onTouchStart={() => startContinuousCmd(10, 10)}
+                onTouchStart={() => startContinuousCmd("forward")}
                 onTouchEnd={stopContinuousCmd}
                 sx={{ flex: 1, fontSize: 20 }}
               >
@@ -312,10 +312,10 @@ export default function RunPage({
                 variant="contained"
                 fullWidth
                 disabled={!joystickEnabled}
-                onMouseDown={() => startContinuousCmd(-10, -10)}
+                onMouseDown={() => startContinuousCmd("backward")}
                 onMouseUp={stopContinuousCmd}
                 onMouseLeave={stopContinuousCmd}
-                onTouchStart={() => startContinuousCmd(-10, -10)}
+                onTouchStart={() => startContinuousCmd("backward")}
                 onTouchEnd={stopContinuousCmd}
                 sx={{ flex: 1, fontSize: 20 }}
               >
