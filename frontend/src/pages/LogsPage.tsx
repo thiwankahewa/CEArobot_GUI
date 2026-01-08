@@ -29,8 +29,15 @@ type LogItem = {
 };
 
 function formatTime(ts_ns: number) {
-  const d = new Date(Math.floor(ts_ns / 1_000_000));
-  return d.toLocaleTimeString();
+  const ms = Math.floor(ts_ns / 1_000_000); // ns → ms
+  const d = new Date(ms);
+
+  const hh = d.getHours().toString().padStart(2, "0");
+  const mm = d.getMinutes().toString().padStart(2, "0");
+  const ss = d.getSeconds().toString().padStart(2, "0");
+  const mmm = (ms % 1000).toString().padStart(3, "0");
+
+  return `${hh}:${mm}:${ss}.${mmm}`;
 }
 
 export default function LogsPage() {

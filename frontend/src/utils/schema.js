@@ -50,6 +50,12 @@ export const SETTINGS_SCHEMA = [
     default: 100.0,
   },
   {
+    paramName: "w_small",
+    node: "/bench_tracker",
+    type: "double",
+    default: 0.01,
+  },
+  {
     paramName: "max_steer_deg",
     node: "/bench_tracker",
     type: "double",

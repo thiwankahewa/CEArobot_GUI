@@ -102,6 +102,17 @@ export const SETTING_GROUPS = [
         unit: "°",
         debounceMs: 200,
       },
+      {
+        type: "number",
+        title: "Steering servo deadzone",
+        description:
+          "when this value increase steer servo will be less sensitive",
+        path: "w_small",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: "",
+      },
     ],
   },
   {
