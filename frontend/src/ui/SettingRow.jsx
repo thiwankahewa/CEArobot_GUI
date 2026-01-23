@@ -6,7 +6,6 @@ import {
   Box,
   IconButton,
   Popover,
-  Button,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 

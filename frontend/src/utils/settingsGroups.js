@@ -36,6 +36,20 @@ export const SETTING_GROUPS = [
     ],
   },*/
   {
+    key: "arduino_bridge",
+    title: "Arduino Settings",
+    children: [
+      {
+        type: "button",
+        title: "Restart ToF Sensors",
+        description: "Restart the ToF sensors only.",
+        buttonText: "Restart",
+        loadingText: "Restarting...",
+        serviceName: "/arduino_bridge/tof_restart",
+      },
+    ],
+  },
+  {
     key: "bench_tracker",
     title: "Bench Tracker Settings",
     children: [

@@ -10,6 +10,7 @@ import UndoIcon from "@mui/icons-material/Undo";
 import SettingToggle from "../ui/SettingToggle";
 import SettingNumber from "../ui/SettingNumber";
 import SettingSlider from "../ui/SettingSlider";
+import SettingButton from "../ui/SettingButton";
 
 import {
   deepEqual,
@@ -85,7 +86,7 @@ export default function SettingsPage({
       const updates = configDiffToRosUpdates(
         config,
         initialConfig,
-        SETTINGS_SCHEMA
+        SETTINGS_SCHEMA,
       );
 
       const updatesByNode = groupUpdatesByNode(updates, paramNameToNode);
@@ -169,8 +170,8 @@ export default function SettingsPage({
             <Stack spacing={2}>
               {group.children.map((item) => {
                 const value = item.path
-                  .split(".")
-                  .reduce((o, k) => o?.[k], config);
+                  ? item.path.split(".").reduce((o, k) => o?.[k], config)
+                  : undefined;
 
                 switch (item.type) {
                   case "toggle":
@@ -217,6 +218,35 @@ export default function SettingsPage({
                         step={item.step}
                         debounceMs={item.debounceMs}
                         onChangeCommitted={(v) => updateSetting(item.path, v)}
+                      />
+                    );
+
+                  case "button":
+                    return (
+                      <SettingButton
+                        key={item.serviceName}
+                        title={item.title}
+                        description={item.description}
+                        buttonText={item.buttonText}
+                        loadingText={item.loadingText}
+                        disabled={!connected}
+                        onClick={async () => {
+                          try {
+                            if (!ros || !connected)
+                              throw new Error("ROS not connected");
+
+                            const res = await callTrigger({
+                              ros,
+                              serviceName: item.serviceName,
+                            });
+                            if (!res.success)
+                              throw new Error(res.message || "Action failed");
+
+                            notify.success(res.message || "Done");
+                          } catch (e) {
+                            notify.error(e?.message || "Action failed");
+                          }
+                        }}
                       />
                     );
 
