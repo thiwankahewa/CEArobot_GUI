@@ -189,6 +189,8 @@ export default function LogsPage() {
             fontSize: 12,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
+            userSelect: "none",
+            scrollbarColor: "#3248ad #1e1e1e",
           }}
         >
           {filtered.length
@@ -196,8 +198,8 @@ export default function LogsPage() {
                 .map(
                   (l) =>
                     `[${formatTime(l.ts_ns)}] [${String(
-                      l.level
-                    ).toUpperCase()}] ${l.name}: ${l.msg}`
+                      l.level,
+                    ).toUpperCase()}] ${l.name}: ${l.msg}`,
                 )
                 .join("\n")
             : "No logs match the current filters."}

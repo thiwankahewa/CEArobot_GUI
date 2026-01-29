@@ -62,7 +62,7 @@ export default function RunPage({
         queue_size: 1,
       },
     ],
-    []
+    [],
   );
 
   const { publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
@@ -123,8 +123,6 @@ export default function RunPage({
 
   function beginSteerTransition(nextDeg) {
     stopContinuousCmd();
-
-    // lock joystick while steering is moving
     setSteerBusy(true);
     setSteerDeg(nextDeg);
     publishSteer(nextDeg);

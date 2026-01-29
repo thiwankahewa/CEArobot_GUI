@@ -36,11 +36,11 @@ export default function BottomNav({ value, onChange }) {
           },
         }}
       >
-        <BottomNavigationAction
+        {/*<BottomNavigationAction
           label="Home"
           icon={<HomeIcon />}
           sx={{ scale: 1.15 }}
-        />
+        />*/}
         <BottomNavigationAction
           label="Control"
           icon={<PlayCircleIcon />}

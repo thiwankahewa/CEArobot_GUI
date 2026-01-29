@@ -28,10 +28,10 @@ import { LogsProvider } from "./ui/LogsCatcher.jsx";
 const DEFAULT_CONFIG = schemaToDefaultConfig(SETTINGS_SCHEMA);
 
 export default function App() {
-  const [tab, setTab] = React.useState(0);
+  const [tab, setTab] = React.useState(1);
   const [estopActive, setEstopActive] = React.useState(false);
   const [initialConfig, setInitialConfig] = React.useState(
-    () => DEFAULT_CONFIG
+    () => DEFAULT_CONFIG,
   );
   const [config, setConfig] = React.useState(() => DEFAULT_CONFIG);
   const [settingsLoaded, setSettingsLoaded] = React.useState(false);
@@ -52,7 +52,7 @@ export default function App() {
   });
 
   const { ros, connected, lastError, connect, disconnect } = useRos(
-    ROSBRIDGE_DEFAULT_URL
+    ROSBRIDGE_DEFAULT_URL,
   );
 
   const dialog = useAppDialog();
@@ -69,13 +69,13 @@ export default function App() {
         queue_size: 1,
       },
     ],
-    []
+    [],
   );
 
   const { publish, topicsReady, subscribe } = useRosTopics(
     ros,
     connected,
-    topicSpecs
+    topicSpecs,
   );
 
   React.useEffect(() => {
@@ -136,7 +136,7 @@ export default function App() {
   }
 
   const pages = [
-    <HomePage ros={ros} connected={connected} estopActive={estopActive} />,
+    /*<HomePage ros={ros} connected={connected} estopActive={estopActive} />,*/
     <RunPage
       ros={ros}
       connected={connected}

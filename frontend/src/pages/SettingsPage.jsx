@@ -160,104 +160,114 @@ export default function SettingsPage({
           </Stack>
         </Stack>
       </Paper>
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "contain",
+          touchAction: "pan-y",
+          userSelect: "none",
+        }}
+      >
+        {SETTING_GROUPS.map((group) => (
+          <Accordion key={group.key} sx={{ borderRadius: 2, mb: 2 }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography sx={{ fontWeight: 600 }}>{group.title}</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                {group.children.map((item) => {
+                  const value = item.path
+                    ? item.path.split(".").reduce((o, k) => o?.[k], config)
+                    : undefined;
 
-      {SETTING_GROUPS.map((group) => (
-        <Accordion key={group.key} sx={{ borderRadius: 2, mb: 2 }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600 }}>{group.title}</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2}>
-              {group.children.map((item) => {
-                const value = item.path
-                  ? item.path.split(".").reduce((o, k) => o?.[k], config)
-                  : undefined;
+                  switch (item.type) {
+                    case "toggle":
+                      return (
+                        <SettingToggle
+                          key={item.path}
+                          title={item.title}
+                          description={item.description}
+                          value={value}
+                          disabled={!connected}
+                          options={item.options}
+                          onChange={(v) => updateSetting(item.path, v)}
+                        />
+                      );
 
-                switch (item.type) {
-                  case "toggle":
-                    return (
-                      <SettingToggle
-                        key={item.path}
-                        title={item.title}
-                        description={item.description}
-                        value={value}
-                        disabled={!connected}
-                        options={item.options}
-                        onChange={(v) => updateSetting(item.path, v)}
-                      />
-                    );
-
-                  case "number":
-                    return (
-                      <SettingNumber
-                        key={item.path}
-                        title={item.title}
-                        description={item.description}
-                        value={value}
-                        disabled={!connected}
-                        min={item.min}
-                        max={item.max}
-                        step={item.step}
-                        unit={item.unit}
-                        onChange={(v) =>
-                          updateSetting(item.path, roundByStep(v, item.step))
-                        }
-                      />
-                    );
-
-                  case "slider":
-                    return (
-                      <SettingSlider
-                        key={item.path}
-                        title={item.title}
-                        description={item.description}
-                        value={value}
-                        disabled={!connected}
-                        min={item.min}
-                        max={item.max}
-                        step={item.step}
-                        debounceMs={item.debounceMs}
-                        onChangeCommitted={(v) => updateSetting(item.path, v)}
-                      />
-                    );
-
-                  case "button":
-                    return (
-                      <SettingButton
-                        key={item.serviceName}
-                        title={item.title}
-                        description={item.description}
-                        buttonText={item.buttonText}
-                        loadingText={item.loadingText}
-                        disabled={!connected}
-                        onClick={async () => {
-                          try {
-                            if (!ros || !connected)
-                              throw new Error("ROS not connected");
-
-                            const res = await callTrigger({
-                              ros,
-                              serviceName: item.serviceName,
-                            });
-                            if (!res.success)
-                              throw new Error(res.message || "Action failed");
-
-                            notify.success(res.message || "Done");
-                          } catch (e) {
-                            notify.error(e?.message || "Action failed");
+                    case "number":
+                      return (
+                        <SettingNumber
+                          key={item.path}
+                          title={item.title}
+                          description={item.description}
+                          value={value}
+                          disabled={!connected}
+                          min={item.min}
+                          max={item.max}
+                          step={item.step}
+                          unit={item.unit}
+                          onChange={(v) =>
+                            updateSetting(item.path, roundByStep(v, item.step))
                           }
-                        }}
-                      />
-                    );
+                        />
+                      );
 
-                  default:
-                    return null;
-                }
-              })}
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
-      ))}
+                    case "slider":
+                      return (
+                        <SettingSlider
+                          key={item.path}
+                          title={item.title}
+                          description={item.description}
+                          value={value}
+                          disabled={!connected}
+                          min={item.min}
+                          max={item.max}
+                          step={item.step}
+                          debounceMs={item.debounceMs}
+                          onChangeCommitted={(v) => updateSetting(item.path, v)}
+                        />
+                      );
+
+                    case "button":
+                      return (
+                        <SettingButton
+                          key={item.serviceName}
+                          title={item.title}
+                          description={item.description}
+                          buttonText={item.buttonText}
+                          loadingText={item.loadingText}
+                          disabled={!connected}
+                          onClick={async () => {
+                            try {
+                              if (!ros || !connected)
+                                throw new Error("ROS not connected");
+
+                              const res = await callTrigger({
+                                ros,
+                                serviceName: item.serviceName,
+                              });
+                              if (!res.success)
+                                throw new Error(res.message || "Action failed");
+
+                              notify.success(res.message || "Done");
+                            } catch (e) {
+                              notify.error(e?.message || "Action failed");
+                            }
+                          }}
+                        />
+                      );
+
+                    default:
+                      return null;
+                  }
+                })}
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        ))}
+      </Box>
     </Box>
   );
 }

@@ -37,8 +37,24 @@ export const SETTING_GROUPS = [
   },*/
   {
     key: "arduino_bridge",
-    title: "Arduino Settings",
+    title: "Connectivity Settings",
     children: [
+      {
+        type: "button",
+        title: "Reconnect Motor Driver",
+        description: "Reconnect the hub servo motor driver.",
+        buttonText: "Reconnect",
+        loadingText: "Reconnecting...",
+        serviceName: "/arduino_bridge/hub_servo_reconnect",
+      },
+      {
+        type: "button",
+        title: "Reconnect Arduino",
+        description: "Reconnect the Arduino.",
+        buttonText: "Reconnect",
+        loadingText: "Reconnecting...",
+        serviceName: "/arduino_bridge/arduino_reconnect",
+      },
       {
         type: "button",
         title: "Restart ToF Sensors",
