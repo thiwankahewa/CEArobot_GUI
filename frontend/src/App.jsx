@@ -161,13 +161,13 @@ export default function App() {
   return (
     <div>
       <TopStatusBar
+        ros={ros}
         status={status}
         connected={connected}
         lastError={lastError}
         connect={connect}
         disconnect={disconnect}
         mode={runUi.mode}
-        subscribe={subscribe}
       />
       <LogsProvider ros={ros} connected={connected}>
         <PageContainer>{pages[tab]}</PageContainer>

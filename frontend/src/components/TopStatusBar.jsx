@@ -5,14 +5,15 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import StatusChip from "./StatusChip";
 import { useAppDialog } from "../ui/AppDialogProvider";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
+import { useRosTopics } from "../ros/useRosTopics";
 
 export default function TopStatusBar({
+  ros,
   connected,
   lastError,
   connect,
   disconnect,
   mode,
-  subscribe,
 }) {
   const [powerW, setPowerW] = React.useState(null);
   const [currentA, setCurrentA] = React.useState(null);
@@ -20,6 +21,20 @@ export default function TopStatusBar({
 
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
+
+  const specs = React.useMemo(
+    () => [
+      {
+        key: "motor_power",
+        name: "/motor_power",
+        type: "std_msgs/Float32MultiArray",
+        queue_size: 10,
+      },
+    ],
+    [],
+  );
+
+  const { topicsReady, subscribe } = useRosTopics(ros, connected, specs);
 
   const handleConnectionClick = () => {
     if (!connected) {
@@ -46,6 +61,7 @@ export default function TopStatusBar({
     const unsub = subscribe(
       "motor_power",
       (msg) => {
+        console.log("motor_power msg:", msg);
         const d = msg?.data ?? [];
         const p = Number(d[0]); // W
         const i = Number(d[1]); // A
