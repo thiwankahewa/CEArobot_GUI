@@ -12,7 +12,12 @@ export default function TopStatusBar({
   connect,
   disconnect,
   mode,
+  subscribe,
 }) {
+  const [powerW, setPowerW] = React.useState(null);
+  const [currentA, setCurrentA] = React.useState(null);
+  const [voltageV, setVoltageV] = React.useState(null);
+
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
 
@@ -30,9 +35,31 @@ export default function TopStatusBar({
     }
   }, [lastError]);
 
-  const handleConfirmDisconnect = () => {
-    disconnect();
-  };
+  React.useEffect(() => {
+    if (!connected) {
+      setPowerW(null);
+      setCurrentA(null);
+      setVoltageV(null);
+      return;
+    }
+
+    const unsub = subscribe(
+      "motor_power",
+      (msg) => {
+        const d = msg?.data ?? [];
+        const p = Number(d[0]); // W
+        const i = Number(d[1]); // A
+        const v = Number(d[2]); // V
+
+        if (Number.isFinite(p)) setPowerW(p);
+        if (Number.isFinite(i)) setCurrentA(i);
+        if (Number.isFinite(v)) setVoltageV(v);
+      },
+      { throttleMs: 500 },
+    );
+
+    return () => unsub();
+  }, [connected, subscribe]);
 
   function showDisconnectConfirm() {
     dialog.showDialog({
@@ -80,17 +107,29 @@ export default function TopStatusBar({
     });
   }
 
+  const motorLabel =
+    powerW == null || currentA == null || voltageV == null
+      ? "Power: -- W | I: -- A | V: -- V"
+      : `Power: ${powerW.toFixed(0)} W | I: ${currentA.toFixed(1)} A | V: ${voltageV.toFixed(1)} V`;
+
   return (
     <>
       <AppBar position="fixed" elevation={1}>
         <Toolbar sx={{ backgroundColor: "#dce2e8ff" }}>
           <Stack direction="row" alignItems="center" sx={{ flex: 1 }}>
-            <StatusChip
-              label={`Mode: ${mode === "manual" ? "Manual" : "Auto"}`}
-              color="primary"
-              variant="outlined"
-            />
+            <Stack direction="row" spacing={1.5}>
+              <StatusChip
+                label={`Mode: ${mode === "manual" ? "Manual" : "Auto"}`}
+                color={connected ? "primary" : "default"}
+                variant="outlined"
+              />
 
+              <StatusChip
+                label={motorLabel}
+                color={connected ? "primary" : "default"}
+                variant="outlined"
+              />
+            </Stack>
             <Stack
               direction="row"
               spacing={1.5}

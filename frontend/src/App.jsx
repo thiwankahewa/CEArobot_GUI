@@ -167,6 +167,7 @@ export default function App() {
         connect={connect}
         disconnect={disconnect}
         mode={runUi.mode}
+        subscribe={subscribe}
       />
       <LogsProvider ros={ros} connected={connected}>
         <PageContainer>{pages[tab]}</PageContainer>
