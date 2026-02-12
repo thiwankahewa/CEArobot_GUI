@@ -1,6 +1,5 @@
 import * as React from "react";
 import {
-  IconButton,
   Paper,
   Stack,
   Button,
@@ -9,12 +8,12 @@ import {
   Typography,
   Divider,
 } from "@mui/material";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 
 import { useRosTopics } from "../ros/useRosTopics";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
+import { useAppDialog } from "../ui/AppDialogProvider";
 
 const STEER_WAIT_MS = 700; // wait time after steering change
 const STEER_STEP_DEG = 5; // left/right step in steering mode
@@ -67,6 +66,8 @@ export default function RunPage({
 
   const { publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
   const notify = useAppSnackbar();
+
+  const { showDialog } = useAppDialog();
 
   const isManual = !estopActive && mode === "manual";
   const joystickEnabled = isManual && !steerBusy;
@@ -183,6 +184,34 @@ export default function RunPage({
     setWarnOpen(true);
   }
 
+  const requestModeChange = (nextMode) => {
+    if (nextMode === "manual") {
+      stopContinuousCmd();
+      setMode("manual");
+      publishMode("manual");
+      return;
+    }
+
+    showDialog({
+      title: "Switch to Auto mode?",
+      content:
+        "Make sure the robot is correctly positioned between the row/bench before enabling Auto mode. Continue?",
+      actions: [
+        { label: "Cancel", variant: "text", color: "inherit" },
+        {
+          label: "Yes, enable Auto",
+          variant: "contained",
+          color: "primary",
+          onClick: () => {
+            stopContinuousCmd();
+            setMode("auto");
+            publishMode("auto");
+          },
+        },
+      ],
+    });
+  };
+
   React.useEffect(() => {
     return () => {
       if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
@@ -196,13 +225,10 @@ export default function RunPage({
           <Typography variant="body1"> Drive mode </Typography>
           <ToggleButtonGroup
             value={mode}
-            disabled={estopActive}
             exclusive
             onChange={(_, v) => {
               if (!v) return;
-              setMode(v);
-              stopContinuousCmd();
-              publishMode(v);
+              requestModeChange(v);
             }}
             fullWidth
             sx={{

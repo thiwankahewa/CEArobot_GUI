@@ -147,7 +147,7 @@ export const SETTING_GROUPS = [
   },
   {
     key: "motor_control_mux",
-    title: "Manual Motor Control Settings",
+    title: "Drive Motor Settings",
     children: [
       {
         type: "slider",
@@ -158,6 +158,28 @@ export const SETTING_GROUPS = [
         max: 25,
         step: 1,
         unit: "rpm",
+        debounceMs: 200,
+      },
+      {
+        type: "slider",
+        title: "Deceleration Time",
+        description: "Deceleration time in milliseconds",
+        path: "decel_ms",
+        min: 500,
+        max: 1500,
+        step: 50,
+        unit: "ms",
+        debounceMs: 200,
+      },
+      {
+        type: "slider",
+        title: "Acceleration Time",
+        description: "Acceleration time in milliseconds",
+        path: "acel_ms",
+        min: 500,
+        max: 1500,
+        step: 50,
+        unit: "ms",
         debounceMs: 200,
       },
     ],

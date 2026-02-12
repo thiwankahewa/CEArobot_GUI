@@ -56,4 +56,17 @@ export const SETTINGS_SCHEMA = [
     type: "int",
     default: 12,
   },
+  /*hub_motor_driver*/
+  {
+    paramName: "decel_ms",
+    node: "/hub_motor_driver",
+    type: "int",
+    default: 500,
+  },
+  {
+    paramName: "acel_ms",
+    node: "/hub_motor_driver",
+    type: "int",
+    default: 500,
+  },
 ];

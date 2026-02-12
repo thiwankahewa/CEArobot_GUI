@@ -7,12 +7,12 @@ export function AppSnackbarProvider({ children }) {
   const [open, setOpen] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [severity, setSeverity] = React.useState("info"); // info|success|warning|error
-  const [duration, setDuration] = React.useState(2500);
+  const [duration, setDuration] = React.useState(1000);
 
   const show = React.useCallback((sev, msg, opts = {}) => {
     setSeverity(sev);
     setMessage(msg);
-    setDuration(opts.duration ?? 2500);
+    setDuration(opts.duration ?? 1000);
 
     // force re-open even if it was already open
     setOpen(false);
@@ -28,7 +28,7 @@ export function AppSnackbarProvider({ children }) {
       error: (msg, opts) => show("error", msg, opts),
       close: () => setOpen(false),
     }),
-    [show]
+    [show],
   );
 
   return (
