@@ -60,6 +60,18 @@ export default function RunPage({
         type: "std_msgs/msg/String",
         queue_size: 1,
       },
+      {
+        key: "autoMode",
+        name: "/auto_mode",
+        type: "std_msgs/msg/String",
+        queue_size: 1,
+      },
+      {
+        key: "autoStart",
+        name: "/auto_start",
+        type: "std_msgs/msg/Bool",
+        queue_size: 1,
+      },
     ],
     [],
   );
@@ -187,6 +199,7 @@ export default function RunPage({
   const requestModeChange = (nextMode) => {
     if (nextMode === "manual") {
       stopContinuousCmd();
+      publishAutoStart(false);
       setMode("manual");
       publishMode("manual");
       return;
@@ -212,11 +225,55 @@ export default function RunPage({
     });
   };
 
+  const requestAutoModeChange = (nextMode) => {
+    if (!ensureRosReady()) return;
+    if (mode !== "auto") return;
+
+    stopContinuousCmd(); // safety
+    publishAutoStart(false); // optional safety stop
+
+    setAutoMode(nextMode);
+    publishAutoMode(nextMode);
+  };
+
+  function publishAutoStart(run) {
+    if (!ensureRosReady()) return;
+    return publish("autoStart", { data: run });
+  }
+
   React.useEffect(() => {
     return () => {
       if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
     };
   }, []);
+  React.useEffect(() => {
+    if (!connected) return;
+
+    // UI safety defaults
+    setRunUi((s) => ({
+      ...s,
+      mode: "manual",
+      autoMode: "mode1",
+      steerMode: "diff",
+      steerAngleDeg: 0, // or 90 if your ackermann center is 90
+    }));
+
+    // stop any held teleop timers
+    stopContinuousCmd();
+  }, [connected, setRunUi]);
+
+  React.useEffect(() => {
+    if (!topicsReady) return;
+
+    // Always make robot safe at connect
+    stopContinuousCmd();
+
+    publish("mode", { data: "manual" }); // force manual
+    publish("autoStart", { data: false }); // stop auto if you have it
+    // publish("cmdVel", { data: "stop" });  // optional extra stop
+
+    // If you have a SOFTWARE estop topic, publish it here (see section 3)
+  }, [topicsReady]);
 
   return (
     <Stack spacing={2} direction="row">
@@ -385,13 +442,11 @@ export default function RunPage({
           </Stack>
           <ToggleButtonGroup
             value={autoMode}
-            disabled={estopActive || mode !== "auto"}
+            disabled={mode !== "auto"}
             exclusive
             onChange={(_, v) => {
               if (!v) return;
-              setAutoMode(v);
-              stopContinuousCmd();
-              publishAutoMode(v);
+              requestAutoModeChange(v);
             }}
             fullWidth
             sx={{
@@ -423,17 +478,17 @@ export default function RunPage({
               Mode 5
             </ToggleButton>
           </ToggleButtonGroup>
-          <Stack
+          {/* <Stack
             direction="row"
             spacing={10}
             justifyContent="center"
             sx={{ height: 70 }}
           >
-            <Button
+          <Button
               variant="contained"
               color="success"
               endIcon={<PlayArrowIcon />}
-              disabled={estopActive || mode !== "auto"}
+              disabled={mode !== "auto"}
               sx={{
                 textTransform: "none",
                 width: "40%",
@@ -443,7 +498,7 @@ export default function RunPage({
               onClick={() => {
                 if (!ensureRosReady()) return;
                 stopContinuousCmd();
-                publish("autoStart", { data: true });
+                publishAutoStart(true);
               }}
             >
               Start
@@ -452,7 +507,7 @@ export default function RunPage({
               variant="contained"
               color="error"
               endIcon={<StopIcon />}
-              disabled={estopActive || mode !== "auto"}
+              disabled={mode !== "auto"}
               sx={{
                 textTransform: "none",
                 width: "40%",
@@ -462,12 +517,12 @@ export default function RunPage({
               onClick={() => {
                 if (!ensureRosReady()) return;
                 stopContinuousCmd();
-                publish("autoStart", { data: false });
+                publishAutoStart(false);
               }}
             >
               Stop
             </Button>
-          </Stack>
+          </Stack>*/}
         </Stack>
       </Paper>
     </Stack>

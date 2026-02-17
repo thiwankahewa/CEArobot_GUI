@@ -8,6 +8,12 @@ export const SETTINGS_SCHEMA = [
   },
   /*bench_tracker*/
   {
+    paramName: "Kp_error",
+    node: "/bench_tracker",
+    type: "double",
+    default: 0.01,
+  },
+  {
     paramName: "Kp_offset",
     node: "/bench_tracker",
     type: "double",

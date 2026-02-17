@@ -135,6 +135,15 @@ export default function App() {
     sendEstop(false);
   }
 
+  React.useEffect(() => {
+    if (connected) {
+      setEstopActive(true);
+      publish("estop", { data: true });
+      return;
+    }
+    setEstopActive(false);
+  }, [connected]);
+
   const pages = [
     /*<HomePage ros={ros} connected={connected} estopActive={estopActive} />,*/
     <RunPage

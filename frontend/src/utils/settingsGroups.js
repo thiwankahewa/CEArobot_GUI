@@ -71,12 +71,22 @@ export const SETTING_GROUPS = [
     children: [
       {
         type: "number",
+        title: "Bench overall error Kp",
+        description: "Proportional gain for bench offset correction",
+        path: "Kp_error",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        unit: "",
+      },
+      {
+        type: "number",
         title: "Bench offset Kp",
         description: "Proportional gain for bench offset correction",
         path: "Kp_offset",
         min: 0,
-        max: 1,
-        step: 0.001,
+        max: 100,
+        step: 0.1,
         unit: "",
       },
       {
@@ -86,7 +96,7 @@ export const SETTING_GROUPS = [
         path: "Kp_yaw",
         min: 0,
         max: 1,
-        step: 0.001,
+        step: 0.005,
         unit: "",
       },
       {

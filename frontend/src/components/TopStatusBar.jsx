@@ -96,6 +96,11 @@ export default function TopStatusBar({
     });
   }
 
+  function handleConfirmDisconnect() {
+    disconnect();
+    notify.success("Disconnected from CEAbot");
+  }
+
   async function exitKioskNow() {
     try {
       const r = await fetch("http://127.0.0.1:7777/exit-kiosk", {
