@@ -49,6 +49,7 @@ export default function App() {
     mode: "manual",
     steerMode: "diff",
     steerDeg: 0,
+    autoState: null,
   });
 
   const { ros, connected, lastError, connect, disconnect } = useRos(

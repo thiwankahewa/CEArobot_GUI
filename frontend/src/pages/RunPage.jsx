@@ -28,11 +28,11 @@ export default function RunPage({
   estopActive,
 }) {
   const mode = runUi.mode;
-  const autoMode = runUi.autoMode;
+  const autoState = runUi.autoState;
   const steerMode = runUi.steerMode;
   const steerDeg = runUi.steerAngleDeg;
   const setMode = (v) => setRunUi((s) => ({ ...s, mode: v }));
-  const setAutoMode = (v) => setRunUi((s) => ({ ...s, autoMode: v }));
+  const setAutoState = (v) => setRunUi((s) => ({ ...s, autoState: v }));
   const setSteerMode = (v) => setRunUi((s) => ({ ...s, steerMode: v }));
   const setSteerDeg = (v) => setRunUi((s) => ({ ...s, steerAngleDeg: v }));
 
@@ -61,15 +61,9 @@ export default function RunPage({
         queue_size: 1,
       },
       {
-        key: "autoMode",
-        name: "/auto_mode",
+        key: "autoState",
+        name: "/auto_state_cmd",
         type: "std_msgs/msg/String",
-        queue_size: 1,
-      },
-      {
-        key: "autoStart",
-        name: "/auto_start",
-        type: "std_msgs/msg/Bool",
         queue_size: 1,
       },
     ],
@@ -110,9 +104,9 @@ export default function RunPage({
     return publish("mode", { data: nextMode });
   }
 
-  function publishAutoMode(nextMode) {
+  function publishAutoState(nextState) {
     if (!ensureRosReady()) return;
-    return publish("autoMode", { data: nextMode });
+    return publish("autoState", { data: nextState });
   }
 
   function stopContinuousCmd() {
@@ -199,7 +193,6 @@ export default function RunPage({
   const requestModeChange = (nextMode) => {
     if (nextMode === "manual") {
       stopContinuousCmd();
-      publishAutoStart(false);
       setMode("manual");
       publishMode("manual");
       return;
@@ -218,28 +211,23 @@ export default function RunPage({
           onClick: () => {
             stopContinuousCmd();
             setMode("auto");
+            setAutoState(null);
             publishMode("auto");
+            publishAutoState("idle");
           },
         },
       ],
     });
   };
 
-  const requestAutoModeChange = (nextMode) => {
+  const requestAutoStateChange = (nextState) => {
     if (!ensureRosReady()) return;
     if (mode !== "auto") return;
 
     stopContinuousCmd(); // safety
-    publishAutoStart(false); // optional safety stop
-
-    setAutoMode(nextMode);
-    publishAutoMode(nextMode);
+    setAutoState(nextState);
+    publishAutoState(nextState);
   };
-
-  function publishAutoStart(run) {
-    if (!ensureRosReady()) return;
-    return publish("autoStart", { data: run });
-  }
 
   React.useEffect(() => {
     return () => {
@@ -253,9 +241,9 @@ export default function RunPage({
     setRunUi((s) => ({
       ...s,
       mode: "manual",
-      autoMode: "mode1",
+      autoState: null,
       steerMode: "diff",
-      steerAngleDeg: 0, // or 90 if your ackermann center is 90
+      steerAngleDeg: 0,
     }));
 
     // stop any held teleop timers
@@ -269,10 +257,7 @@ export default function RunPage({
     stopContinuousCmd();
 
     publish("mode", { data: "manual" }); // force manual
-    publish("autoStart", { data: false }); // stop auto if you have it
-    // publish("cmdVel", { data: "stop" });  // optional extra stop
-
-    // If you have a SOFTWARE estop topic, publish it here (see section 3)
+    publish("autoState", { data: "idle" }); // stop auto if you have it
   }, [topicsReady]);
 
   return (
@@ -441,12 +426,12 @@ export default function RunPage({
             <Typography variant="body1"> Auto mode </Typography>
           </Stack>
           <ToggleButtonGroup
-            value={autoMode}
+            value={autoState ?? null}
             disabled={mode !== "auto"}
             exclusive
             onChange={(_, v) => {
-              if (!v) return;
-              requestAutoModeChange(v);
+              if (v == null) return;
+              requestAutoStateChange(v);
             }}
             fullWidth
             sx={{
@@ -462,67 +447,22 @@ export default function RunPage({
               },
             }}
           >
-            <ToggleButton value="mode1" sx={{ fontSize: 20 }}>
+            <ToggleButton value="bench_tracking_f" sx={{ fontSize: 20 }}>
               Mode 1
             </ToggleButton>
-            <ToggleButton value="mode2" sx={{ fontSize: 20 }}>
+            <ToggleButton value="bench_tracking_b" sx={{ fontSize: 20 }}>
               Mode 2
             </ToggleButton>
-            <ToggleButton value="mode3" sx={{ fontSize: 20 }}>
+            {/*<ToggleButton value="yaw_correction" sx={{ fontSize: 20 }}>
               Mode 3
             </ToggleButton>
-            <ToggleButton value="mode4" sx={{ fontSize: 20 }}>
+            <ToggleButton value="align_center" sx={{ fontSize: 20 }}>
               Mode 4
             </ToggleButton>
             <ToggleButton value="mode5" sx={{ fontSize: 20 }}>
               Mode 5
-            </ToggleButton>
+            </ToggleButton>*/}
           </ToggleButtonGroup>
-          {/* <Stack
-            direction="row"
-            spacing={10}
-            justifyContent="center"
-            sx={{ height: 70 }}
-          >
-          <Button
-              variant="contained"
-              color="success"
-              endIcon={<PlayArrowIcon />}
-              disabled={mode !== "auto"}
-              sx={{
-                textTransform: "none",
-                width: "40%",
-                fontSize: 20,
-                borderRadius: 25,
-              }}
-              onClick={() => {
-                if (!ensureRosReady()) return;
-                stopContinuousCmd();
-                publishAutoStart(true);
-              }}
-            >
-              Start
-            </Button>
-            <Button
-              variant="contained"
-              color="error"
-              endIcon={<StopIcon />}
-              disabled={mode !== "auto"}
-              sx={{
-                textTransform: "none",
-                width: "40%",
-                fontSize: 20,
-                borderRadius: 25,
-              }}
-              onClick={() => {
-                if (!ensureRosReady()) return;
-                stopContinuousCmd();
-                publishAutoStart(false);
-              }}
-            >
-              Stop
-            </Button>
-          </Stack>*/}
         </Stack>
       </Paper>
     </Stack>
