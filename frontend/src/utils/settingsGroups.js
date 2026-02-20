@@ -66,7 +66,7 @@ export const SETTING_GROUPS = [
     ],
   },
   {
-    key: "bench_tracker",
+    key: "bench_tracker_v2",
     title: "Bench Tracker Settings",
     children: [
       {

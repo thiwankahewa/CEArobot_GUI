@@ -9,49 +9,49 @@ export const SETTINGS_SCHEMA = [
   /*bench_tracker*/
   {
     paramName: "Kp_error",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "double",
     default: 0.01,
   },
   {
     paramName: "Kp_offset",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "double",
     default: 0.005,
   },
   {
     paramName: "Kp_yaw",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "double",
     default: 0.005,
   },
   {
     paramName: "base_rpm",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "int",
     default: 12,
   },
   {
     paramName: "max_rpm",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "int",
     default: 25,
   },
   {
     paramName: "k_steer",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "double",
     default: 100.0,
   },
   {
     paramName: "w_small",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "double",
     default: 0.01,
   },
   {
     paramName: "max_steer_deg",
-    node: "/bench_tracker",
+    node: "/bench_tracker_v2",
     type: "double",
     default: 25.0,
   },
@@ -59,8 +59,8 @@ export const SETTINGS_SCHEMA = [
   {
     paramName: "manual_rpm",
     node: "/motor_control_mux",
-    type: "int",
-    default: 12,
+    type: "double",
+    default: 14.0,
   },
   /*hub_motor_driver*/
   {
