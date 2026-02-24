@@ -18,10 +18,7 @@ import { useAppDialog } from "./ui/AppDialogProvider.jsx";
 import { useAppSnackbar } from "./ui/AppSnackbarProvider.jsx";
 import { useRosTopics } from "./ros/useRosTopics";
 import { getRos2ParamsBatch } from "./ros/getRos2ParamsBatch";
-import {
-  buildConfigFromSchema,
-  schemaToDefaultConfig,
-} from "./utils/configUtils";
+import { buildConfigFromSchema, schemaToDefaultConfig } from "./utils/configUtils";
 import { SETTINGS_SCHEMA } from "./utils/schema";
 import { LogsProvider } from "./ui/LogsCatcher.jsx";
 
@@ -30,9 +27,7 @@ const DEFAULT_CONFIG = schemaToDefaultConfig(SETTINGS_SCHEMA);
 export default function App() {
   const [tab, setTab] = React.useState(1);
   const [estopActive, setEstopActive] = React.useState(false);
-  const [initialConfig, setInitialConfig] = React.useState(
-    () => DEFAULT_CONFIG,
-  );
+  const [initialConfig, setInitialConfig] = React.useState(() => DEFAULT_CONFIG);
   const [config, setConfig] = React.useState(() => DEFAULT_CONFIG);
   const [settingsLoaded, setSettingsLoaded] = React.useState(false);
 
@@ -52,9 +47,7 @@ export default function App() {
     autoState: null,
   });
 
-  const { ros, connected, lastError, connect, disconnect } = useRos(
-    ROSBRIDGE_DEFAULT_URL,
-  );
+  const { ros, connected, lastError, connect, disconnect } = useRos(ROSBRIDGE_DEFAULT_URL);
 
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
@@ -73,11 +66,7 @@ export default function App() {
     [],
   );
 
-  const { publish, topicsReady, subscribe } = useRosTopics(
-    ros,
-    connected,
-    topicSpecs,
-  );
+  const { publish, topicsReady, subscribe } = useRosTopics(ros, connected, topicSpecs);
 
   React.useEffect(() => {
     (async () => {
@@ -147,13 +136,7 @@ export default function App() {
 
   const pages = [
     /*<HomePage ros={ros} connected={connected} estopActive={estopActive} />,*/
-    <RunPage
-      ros={ros}
-      connected={connected}
-      runUi={runUi}
-      setRunUi={setRunUi}
-      estopActive={estopActive}
-    />,
+    <RunPage ros={ros} connected={connected} runUi={runUi} setRunUi={setRunUi} estopActive={estopActive} />,
     <PhenoPage ros={ros} connected={connected} estopActive={estopActive} />,
     <SettingsPage
       ros={ros}
