@@ -5,22 +5,20 @@ import TopStatusBar from "./components/TopStatusBar";
 import BottomNav from "./components/BottomNav";
 import PageContainer from "./components/PageContainer";
 
-import HomePage from "./pages/HomePage";
 import RunPage from "./pages/RunPage";
 import PhenoPage from "./pages/PhenoPage";
 import SettingsPage from "./pages/SettingsPage";
 import LogsPage from "./pages/LogsPage";
 import TestPage from "./pages/TestPage";
+import { LogsProvider } from "./ui/LogsCatcher.jsx";
 
-import { useRos } from "./ros/useRos";
-import { ROSBRIDGE_DEFAULT_URL } from "./ros/config";
 import { useAppDialog } from "./ui/AppDialogProvider.jsx";
 import { useAppSnackbar } from "./ui/AppSnackbarProvider.jsx";
+import { useRos } from "./ros/useRos";
 import { useRosTopics } from "./ros/useRosTopics";
 import { getRos2ParamsBatch } from "./ros/getRos2ParamsBatch";
 import { buildConfigFromSchema, schemaToDefaultConfig } from "./utils/configUtils";
 import { SETTINGS_SCHEMA } from "./utils/schema";
-import { LogsProvider } from "./ui/LogsCatcher.jsx";
 
 const DEFAULT_CONFIG = schemaToDefaultConfig(SETTINGS_SCHEMA);
 
@@ -31,23 +29,15 @@ export default function App() {
   const [config, setConfig] = React.useState(() => DEFAULT_CONFIG);
   const [settingsLoaded, setSettingsLoaded] = React.useState(false);
 
-  const [status] = React.useState({
-    rosbridgeConnected: true,
-    mode: "IDLE",
-    estop: false,
-    batteryPct: 84,
-    latencyMs: 18,
-    cpuTempC: 52,
-  });
+  const [mode, setMode] = React.useState("manual");
+  const [autoState, setAutoState] = React.useState(null);
 
-  const [runUi, setRunUi] = React.useState({
+  /*const [runUi, setRunUi] = React.useState({
     mode: "manual",
-    steerMode: "diff",
-    steerDeg: 0,
     autoState: null,
-  });
+  });*/
 
-  const { ros, connected, lastError, connect, disconnect } = useRos(ROSBRIDGE_DEFAULT_URL);
+  const { ros, connected, lastError, connect, disconnect } = useRos("ws://localhost:9090");
 
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
@@ -68,24 +58,29 @@ export default function App() {
 
   const { publish, topicsReady, subscribe } = useRosTopics(ros, connected, topicSpecs);
 
-  React.useEffect(() => {
-    (async () => {
-      if (!connected || !ros || settingsLoaded) return;
-
-      try {
-        const rosMap = await getRos2ParamsBatch({
-          ros,
-          schema: SETTINGS_SCHEMA,
-        });
-        const loaded = buildConfigFromSchema(SETTINGS_SCHEMA, rosMap);
-        setInitialConfig(loaded);
-        setConfig(loaded);
-        setSettingsLoaded(true);
-      } catch (e) {
-        notify.error(e?.message);
-      }
-    })();
-  }, [connected, ros, settingsLoaded]);
+  const pages = [
+    <RunPage
+      ros={ros}
+      connected={connected}
+      mode={mode}
+      setMode={setMode}
+      autoState={autoState}
+      setAutoState={setAutoState}
+      estopActive={estopActive}
+    />,
+    <PhenoPage ros={ros} connected={connected} estopActive={estopActive} />,
+    <SettingsPage
+      ros={ros}
+      connected={connected}
+      estopActive={estopActive}
+      config={config}
+      setConfig={setConfig}
+      initialConfig={initialConfig}
+      setInitialConfig={setInitialConfig}
+    />,
+    <LogsPage ros={ros} connected={connected} estopActive={estopActive} />,
+    <TestPage ros={ros} connected={connected} estopActive={estopActive} />,
+  ];
 
   const handleTabChange = (nextTab) => {
     if (!connected && PROTECTED_TABS.has(nextTab)) {
@@ -106,6 +101,14 @@ export default function App() {
     setTab(nextTab);
   };
 
+  function handleEstopClick() {
+    if (!estopActive) {
+      sendEstop(true);
+      return;
+    }
+    sendEstop(false);
+  }
+
   function sendEstop(next) {
     if (!topicsReady) {
       notify.error("ROS not connected. Cannot toggle E-Stop.");
@@ -117,14 +120,6 @@ export default function App() {
     else notify.success("Emergency Stop Released");
   }
 
-  function handleEstopClick() {
-    if (!estopActive) {
-      sendEstop(true);
-      return;
-    }
-    sendEstop(false);
-  }
-
   React.useEffect(() => {
     if (connected) {
       setEstopActive(true);
@@ -134,34 +129,28 @@ export default function App() {
     setEstopActive(false);
   }, [connected]);
 
-  const pages = [
-    /*<HomePage ros={ros} connected={connected} estopActive={estopActive} />,*/
-    <RunPage ros={ros} connected={connected} runUi={runUi} setRunUi={setRunUi} estopActive={estopActive} />,
-    <PhenoPage ros={ros} connected={connected} estopActive={estopActive} />,
-    <SettingsPage
-      ros={ros}
-      connected={connected}
-      estopActive={estopActive}
-      config={config}
-      setConfig={setConfig}
-      initialConfig={initialConfig}
-      setInitialConfig={setInitialConfig}
-    />,
-    <LogsPage ros={ros} connected={connected} estopActive={estopActive} />,
-    <TestPage ros={ros} connected={connected} estopActive={estopActive} />,
-  ];
+  React.useEffect(() => {
+    (async () => {
+      if (!connected || !ros || settingsLoaded) return;
+
+      try {
+        const rosMap = await getRos2ParamsBatch({
+          ros,
+          schema: SETTINGS_SCHEMA,
+        });
+        const loaded = buildConfigFromSchema(SETTINGS_SCHEMA, rosMap);
+        setInitialConfig(loaded);
+        setConfig(loaded);
+        setSettingsLoaded(true);
+      } catch (e) {
+        notify.error(e?.message);
+      }
+    })();
+  }, [connected, ros, settingsLoaded]);
 
   return (
     <div>
-      <TopStatusBar
-        ros={ros}
-        status={status}
-        connected={connected}
-        lastError={lastError}
-        connect={connect}
-        disconnect={disconnect}
-        mode={runUi.mode}
-      />
+      <TopStatusBar ros={ros} connected={connected} lastError={lastError} connect={connect} disconnect={disconnect} mode={mode} />
       <LogsProvider ros={ros} connected={connected}>
         <PageContainer>{pages[tab]}</PageContainer>
       </LogsProvider>

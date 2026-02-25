@@ -1,13 +1,5 @@
 import * as React from "react";
-import {
-  Paper,
-  Stack,
-  Button,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-  Divider,
-} from "@mui/material";
+import { Paper, Stack, Button, ToggleButton, ToggleButtonGroup, Typography, Divider } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 
@@ -20,22 +12,9 @@ const STEER_STEP_DEG = 5; // left/right step in steering mode
 const STEER_MIN = 45;
 const STEER_MAX = 135;
 
-export default function RunPage({
-  ros,
-  connected,
-  runUi,
-  setRunUi,
-  estopActive,
-}) {
-  const mode = runUi.mode;
-  const autoState = runUi.autoState;
-  const steerMode = runUi.steerMode;
-  const steerDeg = runUi.steerAngleDeg;
-  const setMode = (v) => setRunUi((s) => ({ ...s, mode: v }));
-  const setAutoState = (v) => setRunUi((s) => ({ ...s, autoState: v }));
-  const setSteerMode = (v) => setRunUi((s) => ({ ...s, steerMode: v }));
-  const setSteerDeg = (v) => setRunUi((s) => ({ ...s, steerAngleDeg: v }));
-
+export default function RunPage({ ros, connected, mode, setMode, autoState, setAutoState, estopActive }) {
+  const [steerMode, setSteerMode] = React.useState("diff");
+  const [steerDeg, setSteerDeg] = React.useState(0);
   const [steerBusy, setSteerBusy] = React.useState(false);
   const steerTimerRef = React.useRef(null);
   const publishTimerRef = React.useRef(null);
@@ -71,8 +50,8 @@ export default function RunPage({
   );
 
   const { publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
-  const notify = useAppSnackbar();
 
+  const notify = useAppSnackbar();
   const { showDialog } = useAppDialog();
 
   const isManual = !estopActive && mode === "manual";
@@ -84,6 +63,14 @@ export default function RunPage({
       return false;
     }
     return true;
+  }
+
+  function stopContinuousCmd() {
+    if (publishTimerRef.current) {
+      clearInterval(publishTimerRef.current);
+      publishTimerRef.current = null;
+    }
+    publishRPM("stop");
   }
 
   function publishRPM(command) {
@@ -98,46 +85,13 @@ export default function RunPage({
 
   function publishMode(nextMode) {
     if (!ensureRosReady()) return;
-    if (nextMode === "auto") {
-      publishSteer(0);
-    }
+    publishSteer(0);
     return publish("mode", { data: nextMode });
   }
 
   function publishAutoState(nextState) {
     if (!ensureRosReady()) return;
     return publish("autoState", { data: nextState });
-  }
-
-  function stopContinuousCmd() {
-    if (publishTimerRef.current) {
-      clearInterval(publishTimerRef.current);
-      publishTimerRef.current = null;
-    }
-    publishRPM("stop");
-  }
-
-  function setSteeringMode(nextMode) {
-    if (!isManual) return;
-    setSteerMode(nextMode);
-
-    if (nextMode === "diff") {
-      beginSteerTransition(0);
-    } else {
-      beginSteerTransition(90);
-    }
-  }
-
-  function beginSteerTransition(nextDeg) {
-    stopContinuousCmd();
-    setSteerBusy(true);
-    setSteerDeg(nextDeg);
-    publishSteer(nextDeg);
-
-    if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
-    steerTimerRef.current = setTimeout(() => {
-      setSteerBusy(false);
-    }, STEER_WAIT_MS);
   }
 
   // Start continuous publish (10 Hz) while button is held
@@ -152,7 +106,6 @@ export default function RunPage({
 
   function handleLeftPress() {
     if (!joystickEnabled) return;
-
     if (steerMode === "diff") {
       startContinuousCmd("left");
     } else {
@@ -162,7 +115,6 @@ export default function RunPage({
 
   function handleRightPress() {
     if (!joystickEnabled) return;
-
     if (steerMode === "diff") {
       startContinuousCmd("right");
     } else {
@@ -172,7 +124,6 @@ export default function RunPage({
 
   function changeAckAngle(delta) {
     const next = steerDeg + delta;
-
     if (next < STEER_MIN) {
       notify.warning(`Max steering reached +45°`);
       return;
@@ -181,13 +132,30 @@ export default function RunPage({
       notify.warning(`Max steering reached -45°`);
       return;
     }
-
     beginSteerTransition(next);
   }
 
-  function showSteerWarning(msg) {
-    setSteerWarning(msg);
-    setWarnOpen(true);
+  function beginSteerTransition(nextDeg) {
+    stopContinuousCmd();
+    setSteerBusy(true);
+    setSteerDeg(nextDeg);
+    publishSteer(nextDeg);
+
+    if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
+    steerTimerRef.current = setTimeout(() => {
+      setSteerBusy(false);
+    }, STEER_WAIT_MS);
+  }
+
+  function setSteeringMode(nextMode) {
+    if (!isManual) return;
+    setSteerMode(nextMode);
+
+    if (nextMode === "diff") {
+      beginSteerTransition(0);
+    } else {
+      beginSteerTransition(90);
+    }
   }
 
   const requestModeChange = (nextMode) => {
@@ -200,8 +168,7 @@ export default function RunPage({
 
     showDialog({
       title: "Switch to Auto mode?",
-      content:
-        "Make sure the robot is correctly positioned between the row/bench before enabling Auto mode. Continue?",
+      content: "Make sure the robot is correctly positioned between the row/bench before enabling Auto mode. Continue?",
       actions: [
         { label: "Cancel", variant: "text", color: "inherit" },
         {
@@ -223,7 +190,6 @@ export default function RunPage({
   const requestAutoStateChange = (nextState) => {
     if (!ensureRosReady()) return;
     if (mode !== "auto") return;
-
     stopContinuousCmd(); // safety
     setAutoState(nextState);
     publishAutoState(nextState);
@@ -234,28 +200,18 @@ export default function RunPage({
       if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
     };
   }, []);
+
   React.useEffect(() => {
     if (!connected) return;
-
-    // UI safety defaults
-    setRunUi((s) => ({
-      ...s,
-      mode: "manual",
-      autoState: null,
-      steerMode: "diff",
-      steerAngleDeg: 0,
-    }));
-
-    // stop any held teleop timers
-    stopContinuousCmd();
-  }, [connected, setRunUi]);
+    setMode("manual");
+    setAutoState(null);
+    setSteerMode("diff");
+    setSteerDeg(0);
+  }, [connected]);
 
   React.useEffect(() => {
     if (!topicsReady) return;
-
-    // Always make robot safe at connect
     stopContinuousCmd();
-
     publish("mode", { data: "manual" }); // force manual
     publish("autoState", { data: "idle" }); // stop auto if you have it
   }, [topicsReady]);
@@ -332,12 +288,7 @@ export default function RunPage({
 
           <Divider />
 
-          <Stack
-            spacing={1}
-            alignItems="stretch"
-            direction="row"
-            sx={{ height: 150 }}
-          >
+          <Stack spacing={1} alignItems="stretch" direction="row" sx={{ height: 150 }}>
             {/* Forward */}
             <Button
               variant="contained"
@@ -411,8 +362,7 @@ export default function RunPage({
           </Stack>
 
           <Typography variant="body1" sx={{ pt: 1.5 }}>
-            Current steering angle:{" "}
-            {steerMode === "ackermann" ? <b>{steerDeg - 90}°</b> : <b>0°</b>}
+            Current steering angle: {steerMode === "ackermann" ? <b>{steerDeg - 90}°</b> : <b>0°</b>}
           </Typography>
 
           <Typography variant="caption" color="text.secondary">
@@ -453,15 +403,6 @@ export default function RunPage({
             <ToggleButton value="bench_tracking_b" sx={{ fontSize: 20 }}>
               Mode 2
             </ToggleButton>
-            {/*<ToggleButton value="yaw_correction" sx={{ fontSize: 20 }}>
-              Mode 3
-            </ToggleButton>
-            <ToggleButton value="align_center" sx={{ fontSize: 20 }}>
-              Mode 4
-            </ToggleButton>
-            <ToggleButton value="mode5" sx={{ fontSize: 20 }}>
-              Mode 5
-            </ToggleButton>*/}
           </ToggleButtonGroup>
         </Stack>
       </Paper>

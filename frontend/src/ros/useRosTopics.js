@@ -14,7 +14,7 @@ import * as ROSLIB from "roslib";
  */
 export function useRosTopics(ros, connected, specs) {
   const topicsRef = React.useRef({});
-  const subsRef = React.useRef({}); // key -> Map(subscriptionId -> {cb, wrapper})
+  const subsRef = React.useRef({});
 
   const [topicsReady, setTopicsReady] = React.useState(false);
 
@@ -26,8 +26,6 @@ export function useRosTopics(ros, connected, specs) {
     for (const key of Object.keys(subs)) {
       const topic = topics[key];
       if (!topic) continue;
-
-      // unsubscribe all wrappers we attached
       for (const { wrapper } of subs[key].values()) {
         try {
           topic.unsubscribe(wrapper);
@@ -42,7 +40,6 @@ export function useRosTopics(ros, connected, specs) {
   // ---- create topics when connected ----
   React.useEffect(() => {
     if (!ros || !connected) {
-      // disconnect path
       clearAllSubscriptions();
       topicsRef.current = {};
       setTopicsReady(false);
@@ -85,7 +82,7 @@ export function useRosTopics(ros, connected, specs) {
       t.publish(msg); // roslib accepts plain object
       return true;
     },
-    [ros, connected]
+    [ros, connected],
   );
 
   /**
@@ -109,9 +106,7 @@ export function useRosTopics(ros, connected, specs) {
       }
 
       // unique id per subscription call
-      const subscriptionId = `${Date.now()}_${Math.random()
-        .toString(16)
-        .slice(2)}`;
+      const subscriptionId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
       // wrapper to optionally throttle
       let lastTs = 0;
@@ -149,7 +144,7 @@ export function useRosTopics(ros, connected, specs) {
         if (map.size === 0) delete subsRef.current[key];
       };
     },
-    [ros, connected]
+    [ros, connected],
   );
 
   return {

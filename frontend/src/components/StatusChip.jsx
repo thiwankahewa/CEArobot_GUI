@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Chip } from "@mui/material";
 
 export default function StatusChip({ label, color = "default", variant = "filled" }) {

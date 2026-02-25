@@ -7,14 +7,7 @@ import { useAppDialog } from "../ui/AppDialogProvider";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
 import { useRosTopics } from "../ros/useRosTopics";
 
-export default function TopStatusBar({
-  ros,
-  connected,
-  lastError,
-  connect,
-  disconnect,
-  mode,
-}) {
+export default function TopStatusBar({ ros, connected, lastError, connect, disconnect, mode }) {
   const [powerW, setPowerW] = React.useState(null);
   const [currentA, setCurrentA] = React.useState(null);
   const [voltageV, setVoltageV] = React.useState(null);
@@ -22,7 +15,7 @@ export default function TopStatusBar({
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
 
-  const specs = React.useMemo(
+  const topicSpecs = React.useMemo(
     () => [
       {
         key: "motor_power",
@@ -34,7 +27,39 @@ export default function TopStatusBar({
     [],
   );
 
-  const { topicsReady, subscribe } = useRosTopics(ros, connected, specs);
+  const { subscribe } = useRosTopics(ros, connected, topicSpecs);
+
+  const motorLabel =
+    powerW == null || currentA == null || voltageV == null
+      ? "Power: -- W | I: -- A | V: -- V"
+      : `Power: ${powerW.toFixed(0)} W | I: ${currentA.toFixed(1)} A | V: ${voltageV.toFixed(1)} V`;
+
+  function showExitKioskConfirm() {
+    dialog.showDialog({
+      title: "Exit kiosk mode",
+      content: "This will close the kiosk interface. Continue?",
+      actions: [
+        { label: "Cancel" },
+        {
+          label: "Exit",
+          color: "warning",
+          variant: "contained",
+          onClick: exitKioskNow,
+        },
+      ],
+    });
+  }
+
+  async function exitKioskNow() {
+    try {
+      const r = await fetch("http://127.0.0.1:7777/exit-kiosk", {
+        method: "POST",
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch (e) {
+      notify.error("Failed to exit kiosk");
+    }
+  }
 
   const handleConnectionClick = () => {
     if (!connected) {
@@ -43,6 +68,27 @@ export default function TopStatusBar({
     }
     showDisconnectConfirm();
   };
+
+  function showDisconnectConfirm() {
+    dialog.showDialog({
+      title: "Disconnect from CEAbot",
+      content: "This will close the connection with CEAbot and change to IDLE state. Continue?",
+      actions: [
+        {
+          label: "Cancel",
+        },
+        {
+          label: "Disconnect",
+          color: "error",
+          variant: "contained",
+          onClick: () => {
+            disconnect();
+            notify.success("Disconnected from CEAbot");
+          },
+        },
+      ],
+    });
+  }
 
   React.useEffect(() => {
     if (lastError) {
@@ -61,7 +107,6 @@ export default function TopStatusBar({
     const unsub = subscribe(
       "motor_power",
       (msg) => {
-        console.log("motor_power msg:", msg);
         const d = msg?.data ?? [];
         const p = Number(d[0]); // W
         const i = Number(d[1]); // A
@@ -77,79 +122,15 @@ export default function TopStatusBar({
     return () => unsub();
   }, [connected, subscribe]);
 
-  function showDisconnectConfirm() {
-    dialog.showDialog({
-      title: "Disconnect from CEAbot",
-      content:
-        "This will close the connection with CEAbot and change to IDLE state. Continue?",
-      actions: [
-        {
-          label: "Cancel",
-        },
-        {
-          label: "Disconnect",
-          color: "error",
-          variant: "contained",
-          onClick: handleConfirmDisconnect,
-        },
-      ],
-    });
-  }
-
-  function handleConfirmDisconnect() {
-    disconnect();
-    notify.success("Disconnected from CEAbot");
-  }
-
-  async function exitKioskNow() {
-    try {
-      const r = await fetch("http://127.0.0.1:7777/exit-kiosk", {
-        method: "POST",
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    } catch (e) {
-      notify.error("Failed to exit kiosk");
-    }
-  }
-
-  function showExitKioskConfirm() {
-    dialog.showDialog({
-      title: "Exit kiosk mode",
-      content: "This will close the kiosk interface. Continue?",
-      actions: [
-        { label: "Cancel" },
-        {
-          label: "Exit",
-          color: "warning",
-          variant: "contained",
-          onClick: exitKioskNow,
-        },
-      ],
-    });
-  }
-
-  const motorLabel =
-    powerW == null || currentA == null || voltageV == null
-      ? "Power: -- W | I: -- A | V: -- V"
-      : `Power: ${powerW.toFixed(0)} W | I: ${currentA.toFixed(1)} A | V: ${voltageV.toFixed(1)} V`;
-
   return (
     <>
       <AppBar position="fixed" elevation={1}>
         <Toolbar sx={{ backgroundColor: "#dce2e8ff" }}>
           <Stack direction="row" alignItems="center" sx={{ flex: 1 }}>
             <Stack direction="row" spacing={1.5}>
-              <StatusChip
-                label={`Mode: ${mode === "manual" ? "Manual" : "Auto"}`}
-                color={connected ? "primary" : "default"}
-                variant="outlined"
-              />
+              <StatusChip label={`Mode: ${mode === "manual" ? "Manual" : "Auto"}`} color={connected ? "primary" : "default"} variant="outlined" />
 
-              <StatusChip
-                label={motorLabel}
-                color={connected ? "primary" : "default"}
-                variant="outlined"
-              />
+              <StatusChip label={motorLabel} color={connected ? "primary" : "default"} variant="outlined" />
             </Stack>
             <Stack
               direction="row"
