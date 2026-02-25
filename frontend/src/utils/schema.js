@@ -1,5 +1,6 @@
 export const SETTINGS_SCHEMA = [
   { paramName: "Kp_offset", node: "/bench_tracker_v3", type: "double", default: 0.2 },
+  { paramName: "Kp_offset_b", node: "/bench_tracker_v3", type: "double", default: 0.2 },
   { paramName: "Kd_offset", node: "/bench_tracker_v3", type: "double", default: 0.02 },
   { paramName: "d_filter_t", node: "/bench_tracker_v3", type: "double", default: 0.2 },
   { paramName: "corr_rpm", node: "/bench_tracker_v3", type: "double", default: 2.0 },

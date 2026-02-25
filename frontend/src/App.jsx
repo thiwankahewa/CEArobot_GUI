@@ -129,6 +129,35 @@ export default function App() {
     setEstopActive(false);
   }, [connected]);
 
+  const prevConnectedRef = React.useRef(false);
+  React.useEffect(() => {
+    const prev = prevConnectedRef.current;
+    prevConnectedRef.current = connected;
+
+    if (!prev && connected) {
+      // UI safety defaults (ONLY on connect/reconnect)
+      setMode("manual");
+      setAutoState("idle");
+    }
+
+    if (!connected) {
+      // Optional: reflect disconnected state in UI
+      setAutoState("disconnected");
+    }
+  }, [connected, setMode, setAutoState]);
+
+  const prevTopicsReadyRef = React.useRef(false);
+  React.useEffect(() => {
+    const prev = prevTopicsReadyRef.current;
+    prevTopicsReadyRef.current = topicsReady;
+
+    if (!prev && topicsReady) {
+      // Force robot into safe states once topics are usable
+      publish("mode", { data: "manual" });
+      publish("autoState", { data: "idle" });
+    }
+  }, [topicsReady, publish]);
+
   React.useEffect(() => {
     (async () => {
       if (!connected || !ros || settingsLoaded) return;

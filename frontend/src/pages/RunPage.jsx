@@ -201,21 +201,6 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
     };
   }, []);
 
-  React.useEffect(() => {
-    if (!connected) return;
-    setMode("manual");
-    setAutoState(null);
-    setSteerMode("diff");
-    setSteerDeg(0);
-  }, [connected]);
-
-  React.useEffect(() => {
-    if (!topicsReady) return;
-    stopContinuousCmd();
-    publish("mode", { data: "manual" }); // force manual
-    publish("autoState", { data: "idle" }); // stop auto if you have it
-  }, [topicsReady]);
-
   return (
     <Stack spacing={2} direction="row">
       <Paper variant="outlined" sx={{ p: 1.5, width: "33%" }}>
