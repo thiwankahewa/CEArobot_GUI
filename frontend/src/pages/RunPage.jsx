@@ -1,5 +1,18 @@
 import * as React from "react";
-import { Paper, Stack, Button, ToggleButton, ToggleButtonGroup, Typography, Divider } from "@mui/material";
+import {
+  Paper,
+  Stack,
+  Button,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+  Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
+} from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 
@@ -18,6 +31,16 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
   const [steerBusy, setSteerBusy] = React.useState(false);
   const steerTimerRef = React.useRef(null);
   const publishTimerRef = React.useRef(null);
+
+  const [selectedBench, setSelectedBench] = React.useState("");
+  const [selectedRow, setSelectedRow] = React.useState("");
+  const [autoRunning, setAutoRunning] = React.useState(false);
+  const [marker, setMarker] = React.useState("-");
+  const [currentBench, setCurrentBench] = React.useState("-");
+  const [currentRow, setCurrentRow] = React.useState("-");
+
+  const benches = React.useMemo(() => Array.from({ length: 10 }, (_, i) => i + 1), []);
+  const rows = React.useMemo(() => Array.from({ length: 50 }, (_, i) => i + 11), []);
 
   const topicSpecs = React.useMemo(
     () => [
@@ -45,11 +68,35 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         type: "std_msgs/msg/String",
         queue_size: 1,
       },
+      {
+        key: "aruco_stop_request",
+        name: "/aruco_stop_request",
+        type: "std_msgs/msg/Bool",
+        queue_size: 1,
+      },
+      {
+        key: "aruco_debug",
+        name: "/aruco_debug",
+        type: "std_msgs/msg/String",
+        queue_size: 1,
+      },
+      {
+        key: "goalBench",
+        name: "/goal_bench",
+        type: "std_msgs/msg/Int16",
+        queue_size: 1,
+      },
+      {
+        key: "goalRow",
+        name: "/goal_row",
+        type: "std_msgs/msg/Int16",
+        queue_size: 1,
+      },
     ],
     [],
   );
 
-  const { publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
+  const { subscribe, publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
 
   const notify = useAppSnackbar();
   const { showDialog } = useAppDialog();
@@ -195,9 +242,68 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
     publishAutoState(nextState);
   };
 
+  function handleAutoStart() {
+    if (!ensureRosReady()) return;
+    if (!selectedBench || !selectedRow) {
+      notify.warning("Please select bench and row");
+      return;
+    }
+    publish("goalBench", { data: Number(selectedBench) });
+    publish("goalRow", { data: Number(selectedRow) });
+    const nextState = "bench_tracking_f";
+    setAutoState(nextState);
+    publishAutoState(nextState);
+    setAutoRunning(true);
+  }
+
+  function handleAutoStop() {
+    if (!ensureRosReady()) return;
+    setAutoRunning(false);
+    setAutoState("idle");
+    publishAutoState("idle");
+  }
+
+  React.useEffect(() => {
+    if (!ros || !connected) return;
+
+    const unsubDebug = subscribe(
+      "aruco_debug",
+      (msg) => {
+        const d = msg?.data ?? [];
+
+        const marker = Number(d[0]);
+        const currentBench = Number(d[1]);
+        const currentRow = Number(d[2]);
+
+        if (Number.isFinite(marker)) setMarker(marker);
+        if (Number.isFinite(currentBench)) setCurrentBench(currentBench);
+        if (Number.isFinite(currentRow)) setCurrentRow(currentRow);
+      },
+      { throttleMs: 200 },
+    );
+
+    const unsubStop = subscribe(
+      "aruco_stop_request",
+      (msg) => {
+        if (msg?.data === true) {
+          setAutoRunning(false);
+          setAutoState("idle");
+          notify.warning("Goal reached");
+        }
+      },
+      { throttleMs: 100 },
+    );
+
+    return () => {
+      unsubDebug();
+      unsubStop();
+    };
+  }, [subscribe, connected]);
+
   React.useEffect(() => {
     return () => {
       if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
+      if (publishTimerRef.current) clearInterval(publishTimerRef.current);
     };
   }, []);
 
@@ -389,6 +495,76 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
               Mode 2
             </ToggleButton>
           </ToggleButtonGroup>
+        </Stack>
+
+        <Stack spacing={3} sx={{ marginTop: 2 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="body1">
+              Auto mode
+              {selectedBench && selectedRow ? `  |  Target: Bench ${selectedBench}, Row ${selectedRow}` : ""}
+            </Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={5}>
+            <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+              <InputLabel>Bench No</InputLabel>
+              <Select value={selectedBench} label="Bench No" onChange={(e) => setSelectedBench(e.target.value)}>
+                {benches.map((bench) => (
+                  <MenuItem key={bench} value={bench}>
+                    {bench}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+              <InputLabel>Row No</InputLabel>
+              <Select value={selectedRow} label="Row No" onChange={(e) => setSelectedRow(e.target.value)}>
+                {rows.map((row) => (
+                  <MenuItem key={row} value={row}>
+                    {row}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={mode !== "auto" || autoRunning}
+              onClick={handleAutoStart}
+              sx={{ height: 56, fontSize: 18, textTransform: "none", borderRadius: 10 }}
+              startIcon={autoRunning ? <CircularProgress size={18} color="inherit" /> : <PlayArrowIcon />}
+            >
+              {autoRunning ? "Running..." : "Start"}
+            </Button>
+
+            <Button
+              variant="outlined"
+              color="error"
+              fullWidth
+              disabled={mode !== "auto" || !autoRunning}
+              onClick={handleAutoStop}
+              sx={{ height: 56, fontSize: 18, textTransform: "none", borderRadius: 10 }}
+              startIcon={<StopIcon />}
+            >
+              Stop
+            </Button>
+          </Stack>
+
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.default" }}>
+            <Stack spacing={1}>
+              <Typography variant="body2">
+                Current: Bench {currentBench}, Row {currentRow}
+              </Typography>
+              <Typography variant="body2">Marker: {marker}</Typography>
+              <Typography variant="body2">
+                <b>Current state:</b> {autoRunning ? "running" : autoState || "idle"}
+              </Typography>
+            </Stack>
+          </Paper>
         </Stack>
       </Paper>
     </Stack>
