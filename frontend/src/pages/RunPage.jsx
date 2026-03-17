@@ -32,8 +32,10 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
   const steerTimerRef = React.useRef(null);
   const publishTimerRef = React.useRef(null);
 
-  const [selectedBench, setSelectedBench] = React.useState("");
-  const [selectedRow, setSelectedRow] = React.useState("");
+  const [fromBench, setFromBench] = React.useState("");
+  const [fromRow, setFromRow] = React.useState("");
+  const [toBench, setToBench] = React.useState("");
+  const [toRow, setToRow] = React.useState("");
   const [autoRunning, setAutoRunning] = React.useState(false);
   const [marker, setMarker] = React.useState("-");
   const [currentBench, setCurrentBench] = React.useState("-");
@@ -75,21 +77,15 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         queue_size: 1,
       },
       {
-        key: "aruco_debug",
-        name: "/aruco_debug",
-        type: "std_msgs/msg/String",
+        key: "robot_location",
+        name: "/robot_location",
+        type: "std_msgs/msg/Int16MultiArray",
         queue_size: 1,
       },
       {
-        key: "goalBench",
-        name: "/goal_bench",
-        type: "std_msgs/msg/Int16",
-        queue_size: 1,
-      },
-      {
-        key: "goalRow",
-        name: "/goal_row",
-        type: "std_msgs/msg/Int16",
+        key: "goalLocations",
+        name: "/goal_locations",
+        type: "std_msgs/msg/Int16MultiArray",
         queue_size: 1,
       },
     ],
@@ -244,12 +240,16 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
 
   function handleAutoStart() {
     if (!ensureRosReady()) return;
-    if (!selectedBench || !selectedRow) {
-      notify.warning("Please select bench and row");
+    if (!fromBench || !fromRow || !toBench || !toRow) {
+      notify.warning("Please select From and To bench/row");
       return;
     }
-    publish("goalBench", { data: Number(selectedBench) });
-    publish("goalRow", { data: Number(selectedRow) });
+    if (Number(fromBench) === Number(toBench) && Number(fromRow) === Number(toRow)) {
+      notify.info("Single target location selected");
+    }
+    publish("goalLocations", {
+      data: [Number(fromBench), Number(fromRow), Number(toBench), Number(toRow)],
+    });
     const nextState = "bench_tracking_f";
     setAutoState(nextState);
     publishAutoState(nextState);
@@ -267,7 +267,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
     if (!ros || !connected) return;
 
     const unsubDebug = subscribe(
-      "aruco_debug",
+      "robot_location",
       (msg) => {
         const d = msg?.data ?? [];
 
@@ -462,7 +462,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         </Stack>
       </Paper>
       <Paper variant="outlined" sx={{ p: 1.5, width: "67%" }}>
-        <Stack spacing={3}>
+        {/*<Stack spacing={3}>
           <Stack direction="row">
             <Typography variant="body1"> Auto mode </Typography>
           </Stack>
@@ -495,38 +495,72 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
               Mode 2
             </ToggleButton>
           </ToggleButtonGroup>
-        </Stack>
+        </Stack>*/}
 
         <Stack spacing={3} sx={{ marginTop: 2 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography variant="body1">
               Auto mode
-              {selectedBench && selectedRow ? `  |  Target: Bench ${selectedBench}, Row ${selectedRow}` : ""}
+              {fromBench && fromRow && toBench && toRow ? `  |  From: B${fromBench}, R${fromRow}  →  To: B${toBench}, R${toRow}` : ""}
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={5}>
-            <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
-              <InputLabel>Bench No</InputLabel>
-              <Select value={selectedBench} label="Bench No" onChange={(e) => setSelectedBench(e.target.value)}>
-                {benches.map((bench) => (
-                  <MenuItem key={bench} value={bench}>
-                    {bench}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Stack direction="row" spacing={3}>
+            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
+              <Stack spacing={2}>
+                <Typography variant="subtitle1">From</Typography>
 
-            <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
-              <InputLabel>Row No</InputLabel>
-              <Select value={selectedRow} label="Row No" onChange={(e) => setSelectedRow(e.target.value)}>
-                {rows.map((row) => (
-                  <MenuItem key={row} value={row}>
-                    {row}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                  <InputLabel>Bench No</InputLabel>
+                  <Select value={fromBench} label="Bench No" onChange={(e) => setFromBench(e.target.value)}>
+                    {benches.map((bench) => (
+                      <MenuItem key={bench} value={bench}>
+                        {bench}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                  <InputLabel>Row No</InputLabel>
+                  <Select value={fromRow} label="Row No" onChange={(e) => setFromRow(e.target.value)}>
+                    {rows.map((row) => (
+                      <MenuItem key={row} value={row}>
+                        {row}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
+              <Stack spacing={2}>
+                <Typography variant="subtitle1">To</Typography>
+
+                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                  <InputLabel>Bench No</InputLabel>
+                  <Select value={toBench} label="Bench No" onChange={(e) => setToBench(e.target.value)}>
+                    {benches.map((bench) => (
+                      <MenuItem key={bench} value={bench}>
+                        {bench}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                  <InputLabel>Row No</InputLabel>
+                  <Select value={toRow} label="Row No" onChange={(e) => setToRow(e.target.value)}>
+                    {rows.map((row) => (
+                      <MenuItem key={row} value={row}>
+                        {row}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Paper>
           </Stack>
 
           <Stack direction="row" spacing={2}>
