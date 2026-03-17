@@ -12,6 +12,10 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
@@ -40,6 +44,9 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
   const [marker, setMarker] = React.useState("-");
   const [currentBench, setCurrentBench] = React.useState("-");
   const [currentRow, setCurrentRow] = React.useState("-");
+
+  const [benchDialogOpen, setBenchDialogOpen] = React.useState(false);
+  const [selectedCurrentBench, setSelectedCurrentBench] = React.useState(null);
 
   const benches = React.useMemo(() => Array.from({ length: 10 }, (_, i) => i + 1), []);
   const rows = React.useMemo(() => Array.from({ length: 50 }, (_, i) => i + 11), []);
@@ -86,6 +93,12 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         key: "goalLocations",
         name: "/goal_locations",
         type: "std_msgs/msg/Int16MultiArray",
+        queue_size: 1,
+      },
+      {
+        key: "currentBench",
+        name: "/current_bench",
+        type: "std_msgs/msg/Int16",
         queue_size: 1,
       },
     ],
@@ -244,16 +257,8 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
       notify.warning("Please select From and To bench/row");
       return;
     }
-    if (Number(fromBench) === Number(toBench) && Number(fromRow) === Number(toRow)) {
-      notify.info("Single target location selected");
-    }
-    publish("goalLocations", {
-      data: [Number(fromBench), Number(fromRow), Number(toBench), Number(toRow)],
-    });
-    const nextState = "bench_tracking_f";
-    setAutoState(nextState);
-    publishAutoState(nextState);
-    setAutoRunning(true);
+    setSelectedCurrentBench(null);
+    setBenchDialogOpen(true);
   }
 
   function handleAutoStop() {
@@ -261,6 +266,40 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
     setAutoRunning(false);
     setAutoState("idle");
     publishAutoState("idle");
+  }
+
+  function handleConfirmCurrentBench() {
+    if (!ensureRosReady()) return;
+
+    if (selectedCurrentBench == null) {
+      notify.warning("Please select the current bench");
+      return;
+    }
+
+    const fromB = Number(fromBench);
+    const fromR = Number(fromRow);
+    const toB = Number(toBench);
+    const toR = Number(toRow);
+
+    const sameLocation = fromB === toB && fromR === toR;
+
+    publish("currentBench", { data: Number(selectedCurrentBench) });
+
+    if (sameLocation) {
+      notify.info("Single target location selected");
+    }
+
+    publish("goalLocations", {
+      data: [fromB, fromR, toB, toR],
+    });
+
+    const nextState = "bench_tracking_f";
+    setAutoState(nextState);
+    publishAutoState(nextState);
+    setAutoRunning(true);
+
+    setBenchDialogOpen(false);
+    notify.success(`Current bench set to ${selectedCurrentBench}`);
   }
 
   React.useEffect(() => {
@@ -462,7 +501,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         </Stack>
       </Paper>
       <Paper variant="outlined" sx={{ p: 1.5, width: "67%" }}>
-        {/*<Stack spacing={3}>
+        <Stack spacing={3}>
           <Stack direction="row">
             <Typography variant="body1"> Auto mode </Typography>
           </Stack>
@@ -495,7 +534,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
               Mode 2
             </ToggleButton>
           </ToggleButtonGroup>
-        </Stack>*/}
+        </Stack>
 
         <Stack spacing={3} sx={{ marginTop: 2 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -601,6 +640,52 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
           </Paper>
         </Stack>
       </Paper>
+      <Dialog open={benchDialogOpen} onClose={() => setBenchDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Confirm current bench</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Before starting auto mode, confirm the robot&apos;s current bench location.
+            </Typography>
+
+            <ToggleButtonGroup
+              value={selectedCurrentBench}
+              exclusive
+              onChange={(_, v) => {
+                if (v == null) return;
+                setSelectedCurrentBench(v);
+              }}
+              fullWidth
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(5, 1fr)",
+                gap: 1.2,
+                "& .MuiToggleButtonGroup-grouped": {
+                  margin: 0,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  borderRadius: "999px !important",
+                  minHeight: 52,
+                },
+              }}
+            >
+              {benches.map((bench) => (
+                <ToggleButton key={bench} value={bench} sx={{ fontSize: 18 }}>
+                  {bench}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setBenchDialogOpen(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleConfirmCurrentBench} disabled={selectedCurrentBench == null}>
+            Confirm & Start
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
