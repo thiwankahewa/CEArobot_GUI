@@ -302,6 +302,26 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
     notify.success(`Current bench set to ${selectedCurrentBench}`);
   }
 
+  const filteredFromBenches = React.useMemo(() => {
+    if (!toBench) return benches;
+    return benches.filter((b) => b <= Number(toBench));
+  }, [benches, toBench]);
+
+  const filteredToBenches = React.useMemo(() => {
+    if (!fromBench) return benches;
+    return benches.filter((b) => b >= Number(fromBench));
+  }, [benches, fromBench]);
+
+  const filteredFromRows = React.useMemo(() => {
+    if (!toRow) return rows;
+    return rows.filter((r) => r <= Number(toRow));
+  }, [rows, toRow]);
+
+  const filteredToRows = React.useMemo(() => {
+    if (!fromRow) return rows;
+    return rows.filter((r) => r >= Number(fromRow));
+  }, [rows, fromRow]);
+
   React.useEffect(() => {
     if (!ros || !connected) return;
 
@@ -503,7 +523,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
       <Paper variant="outlined" sx={{ p: 1.5, width: "67%" }}>
         <Stack spacing={3}>
           <Stack direction="row">
-            <Typography variant="body1"> Auto mode </Typography>
+            <Typography variant="body1"> Bench Tracking </Typography>
           </Stack>
           <ToggleButtonGroup
             value={autoState ?? null}
@@ -528,10 +548,10 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
             }}
           >
             <ToggleButton value="bench_tracking_f" sx={{ fontSize: 20 }}>
-              Mode 1
+              Forward
             </ToggleButton>
             <ToggleButton value="bench_tracking_b" sx={{ fontSize: 20 }}>
-              Mode 2
+              Backward
             </ToggleButton>
           </ToggleButtonGroup>
         </Stack>
@@ -552,7 +572,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
                 <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
                   <InputLabel>Bench No</InputLabel>
                   <Select value={fromBench} label="Bench No" onChange={(e) => setFromBench(e.target.value)}>
-                    {benches.map((bench) => (
+                    {filteredFromBenches.map((bench) => (
                       <MenuItem key={bench} value={bench}>
                         {bench}
                       </MenuItem>
@@ -563,7 +583,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
                 <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
                   <InputLabel>Row No</InputLabel>
                   <Select value={fromRow} label="Row No" onChange={(e) => setFromRow(e.target.value)}>
-                    {rows.map((row) => (
+                    {filteredFromRows.map((row) => (
                       <MenuItem key={row} value={row}>
                         {row}
                       </MenuItem>
@@ -580,7 +600,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
                 <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
                   <InputLabel>Bench No</InputLabel>
                   <Select value={toBench} label="Bench No" onChange={(e) => setToBench(e.target.value)}>
-                    {benches.map((bench) => (
+                    {filteredToBenches.map((bench) => (
                       <MenuItem key={bench} value={bench}>
                         {bench}
                       </MenuItem>
@@ -591,7 +611,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
                 <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
                   <InputLabel>Row No</InputLabel>
                   <Select value={toRow} label="Row No" onChange={(e) => setToRow(e.target.value)}>
-                    {rows.map((row) => (
+                    {filteredToRows.map((row) => (
                       <MenuItem key={row} value={row}>
                         {row}
                       </MenuItem>
