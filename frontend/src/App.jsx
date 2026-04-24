@@ -154,7 +154,7 @@ export default function App() {
     if (!prev && topicsReady) {
       // Force robot into safe states once topics are usable
       publish("mode", { data: "manual" });
-      publish("autoState", { data: "idle" });
+      publish("autoState", { data: "manual" });
     }
   }, [topicsReady, publish]);
 
