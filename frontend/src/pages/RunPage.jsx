@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Box,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
@@ -44,6 +45,8 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
   const [marker, setMarker] = React.useState("-");
   const [currentBench, setCurrentBench] = React.useState("-");
   const [currentRow, setCurrentRow] = React.useState("-");
+  const [goalBench, setGoalBench] = React.useState("-");
+  const [goalRow, setGoalRow] = React.useState("-");
 
   const [benchDialogOpen, setBenchDialogOpen] = React.useState(false);
   const [selectedCurrentBench, setSelectedCurrentBench] = React.useState(null);
@@ -333,10 +336,14 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         const marker = Number(d[0]);
         const currentBench = Number(d[1]);
         const currentRow = Number(d[2]);
+        const goalBench = Number(d[3]);
+        const goalRow = Number(d[4]);
 
         if (Number.isFinite(marker)) setMarker(marker);
         if (Number.isFinite(currentBench)) setCurrentBench(currentBench);
         if (Number.isFinite(currentRow)) setCurrentRow(currentRow);
+        if (Number.isFinite(goalBench)) setGoalBench(goalBench);
+        if (Number.isFinite(goalRow)) setGoalRow(goalRow);
       },
       { throttleMs: 200 },
     );
@@ -647,17 +654,91 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
             </Button>
           </Stack>
 
-          <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.default" }}>
-            <Stack spacing={1}>
-              <Typography variant="body2">
-                Current: Bench {currentBench}, Row {currentRow}
+          <Stack spacing={1}>
+            {currentBench !== -1 && currentRow !== -1 && goalBench !== -1 && goalRow !== -1 ? (
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  backgroundColor: "#f5f7fa",
+                  border: "1px solid #d0d7de",
+                  width: "100%",
+                }}
+              >
+                {/* From */}
+                <Stack alignItems="flex-start">
+                  <Typography variant="caption" color="text.secondary">
+                    From
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    Bench {currentBench}
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    Row {currentRow}
+                  </Typography>
+                </Stack>
+
+                {/* Animated fading arrow */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    mx: 2,
+                    height: 24,
+                    position: "relative",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: 3,
+                      background: "linear-gradient(90deg, transparent, #17ad49, transparent)",
+                      animation: autoRunning ? "arrowFadeMove 1.4s infinite ease-in-out" : "none",
+                      opacity: autoRunning ? 1 : 0.3,
+                      "@keyframes arrowFadeMove": {
+                        "0%": {
+                          transform: "translateX(-100%)",
+                          opacity: 0,
+                        },
+                        "30%": {
+                          opacity: 1,
+                        },
+                        "70%": {
+                          opacity: 1,
+                        },
+                        "100%": {
+                          transform: "translateX(100%)",
+                          opacity: 0,
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+
+                {/* To */}
+                <Stack alignItems="flex-end">
+                  <Typography variant="caption" color="text.secondary">
+                    To
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    Bench {goalBench}
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    Row {goalRow}
+                  </Typography>
+                </Stack>
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Robot location not available
               </Typography>
-              <Typography variant="body2">Marker: {marker}</Typography>
-              <Typography variant="body2">
-                <b>Current state:</b> {autoRunning ? "running" : autoState || "idle"}
-              </Typography>
-            </Stack>
-          </Paper>
+            )}
+          </Stack>
         </Stack>
       </Paper>
       <Dialog open={benchDialogOpen} onClose={() => setBenchDialogOpen(false)} maxWidth="xs" fullWidth>

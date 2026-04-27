@@ -1,11 +1,12 @@
 import * as React from "react";
-import { AppBar, Toolbar, Stack, Button } from "@mui/material";
+import { AppBar, Toolbar, Stack, Button, Box } from "@mui/material";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import StatusChip from "./StatusChip";
 import { useAppDialog } from "../ui/AppDialogProvider";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
 import { useRosTopics } from "../ros/useRosTopics";
+import Logo from "../assets/ugaLogo.png";
 
 export default function TopStatusBar({ ros, connected, lastError, connect, disconnect, mode }) {
   const dialog = useAppDialog();
@@ -81,6 +82,17 @@ export default function TopStatusBar({ ros, connected, lastError, connect, disco
             <Stack direction="row" spacing={1.5}>
               <StatusChip label={`Mode: ${mode === "manual" ? "Manual" : "Auto"}`} color={connected ? "primary" : "default"} variant="outlined" />
             </Stack>
+            <Box
+              component="img"
+              src={Logo}
+              alt="Logo"
+              sx={{
+                position: "absolute",
+                left: "50%",
+                transform: "translateX(-50%)",
+                height: 40, // adjust size
+              }}
+            />
             <Stack
               direction="row"
               spacing={1.5}
