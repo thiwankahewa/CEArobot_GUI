@@ -1,4 +1,7 @@
 export const SETTINGS_SCHEMA = [
+  { paramName: "min_tof", node: "/bench_tracker_v3", type: "int", default: 25 },
+  { paramName: "max_tof", node: "/bench_tracker_v3", type: "int", default: 500 },
+  { paramName: "aruco_center_stable_cycles", node: "/bench_tracker_v3", type: "int", default: 3 },
   { paramName: "Kp_offset", node: "/bench_tracker_v3", type: "double", default: 0.2 },
   { paramName: "Kp_offset_b", node: "/bench_tracker_v3", type: "double", default: 0.2 },
   { paramName: "Kd_offset", node: "/bench_tracker_v3", type: "double", default: 0.02 },
@@ -10,6 +13,8 @@ export const SETTINGS_SCHEMA = [
   { paramName: "offset_exit_m", node: "/bench_tracker_v3", type: "double", default: 0.01 },
   { paramName: "yaw_enter_m", node: "/bench_tracker_v3", type: "double", default: 0.05 },
   { paramName: "yaw_exit_m", node: "/bench_tracker_v3", type: "double", default: 0.02 },
+  { paramName: "aruco_center_done_norm", node: "/bench_tracker_v3", type: "int", default: 5 },
+  { paramName: "aruco_center_stable_cycles", node: "/bench_tracker_v3", type: "int", default: 3 },
 
   { paramName: "manual_rpm", node: "/motor_control_mux", type: "double", default: 10.0 },
 

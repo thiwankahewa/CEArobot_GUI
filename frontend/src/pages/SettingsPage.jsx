@@ -225,6 +225,7 @@ export default function SettingsPage({
                           min={item.min}
                           max={item.max}
                           step={item.step}
+                          unit={item.unit} 
                           debounceMs={item.debounceMs}
                           onChangeCommitted={(v) => updateSetting(item.path, v)}
                         />

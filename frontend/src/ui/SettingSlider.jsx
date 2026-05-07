@@ -25,9 +25,9 @@ export default function SettingSlider({
     onChangeCommitted(v);
   }, debounceMs);
 
-  const rangeText = `${min} ${unit ?? ""} — ${max} ${
-    unit ?? ""
-  } (step ${step} ${unit ?? ""})`;
+  const rangeText = unit
+  ? `${min} — ${max} (step ${step} ${unit})`
+  : `${min} — ${max} (step ${step})`;
 
   const fullDescription = [description?.trim(), rangeText]
     .filter(Boolean)
