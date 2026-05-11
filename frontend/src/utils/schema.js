@@ -1,4 +1,7 @@
 export const SETTINGS_SCHEMA = [
+  { paramName: "bench_height", node: "/plant_locator", type: "double", default: 0.75 },
+  { paramName: "pot_height", node: "/plant_locator", type: "double", default: 0.15 },
+
   { paramName: "min_tof", node: "/bench_tracker_v3", type: "int", default: 25 },
   { paramName: "max_tof", node: "/bench_tracker_v3", type: "int", default: 500 },
   { paramName: "aruco_center_stable_cycles", node: "/bench_tracker_v3", type: "int", default: 3 },

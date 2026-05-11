@@ -1,5 +1,33 @@
 export const SETTING_GROUPS = [
   {
+    key: "plant_locator",
+    title: "Greenhouse Configuration",
+    children: [
+      {
+        type: "slider",
+        title: "Bench height",
+        description: "Measure average bench height from the floor.",
+        path: "bench_height",
+        min: 0.5,
+        max: 1.5,
+        step: 0.01,
+        unit: "m",
+        debounceMs: 200,
+      },
+      {
+        type: "slider",
+        title: "Pot height",
+        description: "Measure average pot height.",
+        path: "pot_height",
+        min: 0.05,
+        max: 0.40,
+        step: 0.01,
+        unit: "m",
+        debounceMs: 200,
+      },
+    ],
+  },
+  {
     key: "arduino_bridge",
     title: "Connectivity Settings",
     children: [
