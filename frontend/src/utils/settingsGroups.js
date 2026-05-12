@@ -20,7 +20,7 @@ export const SETTING_GROUPS = [
         description: "Measure average pot height.",
         path: "pot_height",
         min: 0.05,
-        max: 0.40,
+        max: 0.4,
         step: 0.01,
         unit: "m",
         debounceMs: 200,
@@ -61,7 +61,7 @@ export const SETTING_GROUPS = [
     key: "bench_tracker_v3",
     title: "Bench Tracker Settings",
     children: [
-    {
+      {
         type: "slider",
         title: "Minimum ToF value",
         description: "If the ToF value is below this threshold, the robot will stop to avoid collision.",
@@ -86,7 +86,8 @@ export const SETTING_GROUPS = [
       {
         type: "slider",
         title: "Bench offset Kp forward",
-        description: "Proportional gain for bench tracker when moving forward. Higher values will result in stronger correction but can cause oscillations if set too high.",
+        description:
+          "Proportional gain for bench tracker when moving forward. Higher values will result in stronger correction but can cause oscillations if set too high.",
         path: "Kp_offset",
         min: 0,
         max: 1,
@@ -97,7 +98,8 @@ export const SETTING_GROUPS = [
       {
         type: "slider",
         title: "Bench offset Kp backward",
-        description: "Proportional gain for bench tracker when moving backward. Higher values will result in stronger correction but can cause oscillations if set too high.",
+        description:
+          "Proportional gain for bench tracker when moving backward. Higher values will result in stronger correction but can cause oscillations if set too high.",
         path: "Kp_offset_b",
         min: 0,
         max: 1,
@@ -108,7 +110,8 @@ export const SETTING_GROUPS = [
       {
         type: "slider",
         title: "Bench offset Kd",
-        description: "Derivative gain for bench tracker for both forward and backward movement. Higher values will result in more damping but can cause oscillations if set too high.",
+        description:
+          "Derivative gain for bench tracker for both forward and backward movement. Higher values will result in more damping but can cause oscillations if set too high.",
         path: "Kd_offset",
         min: 0,
         max: 10,
@@ -119,7 +122,8 @@ export const SETTING_GROUPS = [
       {
         type: "slider",
         title: "Bench offset D filter t",
-        description: "Time constant for the derivative filter in bench tracker for both forward and backward movement. Higher values will result in smoother but less responsive behavior.",
+        description:
+          "Time constant for the derivative filter in bench tracker for both forward and backward movement. Higher values will result in smoother but less responsive behavior.",
         path: "d_filter_t",
         min: 0,
         max: 1,

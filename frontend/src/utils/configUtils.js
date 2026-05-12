@@ -10,15 +10,15 @@ export function schemaToDefaultConfig(schema) {
 export function schemaToMap(schema) {
   const paramNameToType = {};
   const paramNameToDefault = {};
-  const paramNameToNode = {};
+  const paramNameToNodes = {};
 
   for (const s of schema) {
     paramNameToType[s.paramName] = s.type;
     paramNameToDefault[s.paramName] = s.default;
-    paramNameToNode[s.paramName] = s.node;
+    paramNameToNodes[s.paramName] = s.nodes ?? [s.node];
   }
 
-  return { paramNameToType, paramNameToDefault, paramNameToNode };
+  return { paramNameToType, paramNameToDefault, paramNameToNodes };
 }
 
 export function deepEqual(a, b) {
@@ -79,25 +79,39 @@ export function configDiffToRosUpdates(config, initialConfig, schema) {
   return updates;
 }
 
-export function groupUpdatesByNode(updates, paramNameToNode) {
+export function groupUpdatesByNode(updates, paramNameToNodes) {
   const byNode = {};
   for (const [paramName, value] of Object.entries(updates)) {
-    const node = paramNameToNode[paramName];
-    if (!node) {
+    const node = paramNameToNodes[paramName];
+    if (!nodes?.length) {
       throw new Error(`No node mapping for param '${paramName}'`);
     }
-    if (!byNode[node]) byNode[node] = {};
-    byNode[node][paramName] = value;
+    for (const node of nodes) {
+      if (!byNode[node]) byNode[node] = {};
+      byNode[node][paramName] = value;
+    }
   }
   return byNode;
 }
 
 export function buildConfigFromSchema(schema, rosMapByNode) {
   let cfg = {};
+
   for (const item of schema) {
-    const v = rosMapByNode?.[item.node]?.[item.paramName];
-    const value = v === null || v === undefined ? item.default : v;
+    const nodes = item.nodes ?? [item.node];
+
+    let value = item.default;
+
+    for (const node of nodes) {
+      const v = rosMapByNode?.[node]?.[item.paramName];
+      if (v !== null && v !== undefined) {
+        value = v;
+        break;
+      }
+    }
+
     cfg = setByPath(cfg, item.paramName, value);
   }
+
   return cfg;
 }

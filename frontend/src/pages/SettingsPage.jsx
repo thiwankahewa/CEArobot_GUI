@@ -12,13 +12,7 @@ import SettingNumber from "../ui/SettingNumber";
 import SettingSlider from "../ui/SettingSlider";
 import SettingButton from "../ui/SettingButton";
 
-import {
-  deepEqual,
-  setByPath,
-  schemaToMap,
-  configDiffToRosUpdates,
-  groupUpdatesByNode,
-} from "../utils/configUtils";
+import { deepEqual, setByPath, schemaToMap, configDiffToRosUpdates, groupUpdatesByNode } from "../utils/configUtils";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
 import { setRos2Param } from "../ros/setRos2Param";
 import { setRos2ParamsBatch } from "../ros/setRos2ParamsBatch";
@@ -26,7 +20,7 @@ import { callTrigger } from "../ros/callTrigger";
 import { SETTINGS_SCHEMA } from "../utils/schema";
 import { SETTING_GROUPS } from "../utils/settingsGroups";
 
-const { paramNameToType, paramNameToNode } = schemaToMap(SETTINGS_SCHEMA);
+const { paramNameToType, paramNameToNodes } = schemaToMap(SETTINGS_SCHEMA);
 
 function roundByStep(value, step) {
   if (!step) return value;
@@ -37,14 +31,7 @@ function roundByStep(value, step) {
   return Number(value.toFixed(decimals));
 }
 
-export default function SettingsPage({
-  ros,
-  connected,
-  config,
-  setConfig,
-  initialConfig,
-  setInitialConfig,
-}) {
+export default function SettingsPage({ ros, connected, config, setConfig, initialConfig, setInitialConfig }) {
   const [saving, setSaving] = React.useState(false);
 
   const notify = useAppSnackbar();
@@ -54,9 +41,22 @@ export default function SettingsPage({
     setConfig((prev) => setByPath(prev, paramName, value));
     try {
       if (!ros || !connected) throw new Error("ROS not connected");
-      const nodeName = paramNameToNode[paramName];
+      const nodes = paramNameToNodes[paramName];
       const type = paramNameToType[paramName];
-      await setRos2Param({ ros, nodeName, paramName, value, type });
+      if (!nodes?.length) {
+        throw new Error(`No node mapping for param '${paramName}'`);
+      }
+      await Promise.all(
+        nodes.map((nodeName) =>
+          setRos2Param({
+            ros,
+            nodeName,
+            paramName,
+            value,
+            type,
+          }),
+        ),
+      );
     } catch (e) {
       notify.error(e?.message);
     }
@@ -83,13 +83,9 @@ export default function SettingsPage({
   async function handleRevert() {
     setConfig(initialConfig);
     try {
-      const updates = configDiffToRosUpdates(
-        config,
-        initialConfig,
-        SETTINGS_SCHEMA,
-      );
+      const updates = configDiffToRosUpdates(config, initialConfig, SETTINGS_SCHEMA);
 
-      const updatesByNode = groupUpdatesByNode(updates, paramNameToNode);
+      const updatesByNode = groupUpdatesByNode(updates, paramNameToNodes);
       for (const [nodeName, nodeUpdates] of Object.entries(updatesByNode)) {
         await setRos2ParamsBatch({
           ros,
@@ -116,16 +112,9 @@ export default function SettingsPage({
           mb: 2,
         }}
       >
-        <Stack
-          direction="row"
-          spacing={1.5}
-          alignItems="center"
-          justifyContent="space-between"
-        >
+        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
           <Stack spacing={0.2}>
-            <Typography sx={{ fontWeight: 800, fontSize: 16 }}>
-              Settings
-            </Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: 16 }}>Settings</Typography>
             <Typography variant="caption" color="text.secondary">
               {dirty ? "Unsaved changes" : "All changes saved"}
             </Typography>
@@ -143,13 +132,7 @@ export default function SettingsPage({
             </Button>
 
             <Button
-              startIcon={
-                saving ? (
-                  <CircularProgress size={18} color="inherit" />
-                ) : (
-                  <SaveIcon />
-                )
-              }
+              startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
               variant="contained"
               disabled={saving || !dirty || !connected}
               onClick={handleSave}
@@ -178,9 +161,7 @@ export default function SettingsPage({
             <AccordionDetails>
               <Stack spacing={2}>
                 {group.children.map((item) => {
-                  const value = item.path
-                    ? item.path.split(".").reduce((o, k) => o?.[k], config)
-                    : undefined;
+                  const value = item.path ? item.path.split(".").reduce((o, k) => o?.[k], config) : undefined;
 
                   switch (item.type) {
                     case "toggle":
@@ -208,9 +189,7 @@ export default function SettingsPage({
                           max={item.max}
                           step={item.step}
                           unit={item.unit}
-                          onChange={(v) =>
-                            updateSetting(item.path, roundByStep(v, item.step))
-                          }
+                          onChange={(v) => updateSetting(item.path, roundByStep(v, item.step))}
                         />
                       );
 
@@ -225,7 +204,7 @@ export default function SettingsPage({
                           min={item.min}
                           max={item.max}
                           step={item.step}
-                          unit={item.unit} 
+                          unit={item.unit}
                           debounceMs={item.debounceMs}
                           onChangeCommitted={(v) => updateSetting(item.path, v)}
                         />
@@ -242,15 +221,13 @@ export default function SettingsPage({
                           disabled={!connected}
                           onClick={async () => {
                             try {
-                              if (!ros || !connected)
-                                throw new Error("ROS not connected");
+                              if (!ros || !connected) throw new Error("ROS not connected");
 
                               const res = await callTrigger({
                                 ros,
                                 serviceName: item.serviceName,
                               });
-                              if (!res.success)
-                                throw new Error(res.message || "Action failed");
+                              if (!res.success) throw new Error(res.message || "Action failed");
 
                               notify.success(res.message || "Done");
                             } catch (e) {

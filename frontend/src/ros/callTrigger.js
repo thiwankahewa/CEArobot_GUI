@@ -1,6 +1,6 @@
 import * as ROSLIB from "roslib";
 
-export function callTrigger({ ros, serviceName }) {
+export function callTrigger({ ros, serviceName, timeout = 15000 }) {
   const srv = new ROSLIB.Service({
     ros,
     name: serviceName,
@@ -13,7 +13,8 @@ export function callTrigger({ ros, serviceName }) {
     srv.callService(
       req,
       (res) => resolve(res),
-      (err) => reject(new Error(err?.message || "Trigger service failed"))
+      (err) => reject(new Error(err?.message || "Trigger service failed")),
+      timeout,
     );
   });
 }

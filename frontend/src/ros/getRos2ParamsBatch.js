@@ -37,8 +37,7 @@ function callGetParameters({ ros, node, names }) {
         names.forEach((name, i) => (out[name] = decodeParamValue(values[i])));
         resolve(out); // { "limits.max_rpm": 21, ... }
       },
-      (err) =>
-        reject(new Error(err?.message || `GetParameters failed for ${node}`))
+      (err) => reject(new Error(err?.message || `GetParameters failed for ${node}`)),
     );
   });
 }
@@ -47,15 +46,22 @@ export async function getRos2ParamsBatch({ ros, schema }) {
   // group param names by node
   const byNode = new Map();
   for (const s of schema) {
-    if (!byNode.has(s.node)) byNode.set(s.node, []);
-    byNode.get(s.node).push(s.paramName);
+    const nodes = s.nodes ?? [s.node];
+
+    for (const node of nodes) {
+      if (!byNode.has(node)) byNode.set(node, []);
+
+      if (!byNode.get(node).includes(s.paramName)) {
+        byNode.get(node).push(s.paramName);
+      }
+    }
   }
 
   const result = {}; // { "/motor_controller": {...}, "/steering_controller": {...} }
   await Promise.all(
     [...byNode.entries()].map(async ([node, names]) => {
       result[node] = await callGetParameters({ ros, node, names });
-    })
+    }),
   );
 
   return result;
