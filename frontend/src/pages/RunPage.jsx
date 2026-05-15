@@ -78,6 +78,12 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         queue_size: 1,
       },
       {
+        key: "autoStateSub",
+        name: "/auto_state",
+        type: "std_msgs/msg/String",
+        queue_size: 1,
+      },
+      {
         key: "aruco_stop_request",
         name: "/aruco_stop_request",
         type: "std_msgs/msg/Bool",
@@ -351,8 +357,17 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
       (msg) => {
         if (msg?.data === true) {
           setAutoRunning(false);
-          setAutoState("idle");
           notify.warning("Goal reached");
+        }
+      },
+      { throttleMs: 100 },
+    );
+
+    const unsubState = subscribe(
+      "autoStateSub",
+      (msg) => {
+        if (msg?.data === "idle") {
+          setAutoRunning(false);
         }
       },
       { throttleMs: 100 },
