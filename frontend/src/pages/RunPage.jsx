@@ -37,10 +37,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
   const steerTimerRef = React.useRef(null);
   const publishTimerRef = React.useRef(null);
 
-  const [fromBench, setFromBench] = React.useState("");
-  const [fromRow, setFromRow] = React.useState("");
-  const [toBench, setToBench] = React.useState("");
-  const [toRow, setToRow] = React.useState("");
+  const [scanRows, setScanRows] = React.useState([{ bench: "", fromRow: "", toRow: "" }]);
   const [autoRunning, setAutoRunning] = React.useState(false);
   const [marker, setMarker] = React.useState("-");
   const [currentBench, setCurrentBench] = React.useState("-");
@@ -254,12 +251,41 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
     publishAutoState(nextState);
   };
 
+  function updateScanRow(index, field, value) {
+    setScanRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return row;
+
+        const updated = {
+          ...row,
+          [field]: value,
+        };
+
+        // If fromRow changes, reset toRow
+        if (field === "fromRow") {
+          updated.toRow = "";
+        }
+
+        return updated;
+      }),
+    );
+  }
+
+  function addScanRow() {
+    setScanRows((prev) => [...prev, { bench: "", fromRow: "", toRow: "" }]);
+  }
+
+  function removeScanRow(index) {
+    setScanRows((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function getToRows(fromRow) {
+    if (!fromRow) return rows;
+    return rows.filter((row) => row >= Number(fromRow));
+  }
+
   function handleAutoStart() {
     if (!ensureRosReady()) return;
-    if (!fromBench || !fromRow || !toBench || !toRow) {
-      notify.warning("Please select From and To bench/row");
-      return;
-    }
     setSelectedCurrentBench(null);
     setBenchDialogOpen(true);
   }
@@ -279,51 +305,23 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
       return;
     }
 
-    const fromB = Number(fromBench);
-    const fromR = Number(fromRow);
-    const toB = Number(toBench);
-    const toR = Number(toRow);
-
-    const sameLocation = fromB === toB && fromR === toR;
-
-    publish("currentBench", { data: Number(selectedCurrentBench) });
-
-    if (sameLocation) {
-      notify.info("Single target location selected");
+    const invalidRow = scanRows.some((row) => !row.bench || !row.fromRow || !row.toRow);
+    if (invalidRow) {
+      notify.warning("Please complete all scan plan rows");
+      return;
     }
 
-    publish("goalLocations", {
-      data: [fromB, fromR, toB, toR],
-    });
+    const scanPlanData = scanRows.flatMap((row) => [Number(row.bench), Number(row.fromRow), Number(row.toRow)]);
 
+    publish("currentBench", { data: Number(selectedCurrentBench) });
+    publish("goalLocations", { data: scanPlanData });
+    notify.success("Scan plan saved");
     const nextState = "bench_tracking_f";
     setAutoState(nextState);
-    publishAutoState(nextState);
+    //publishAutoState(nextState);
     setAutoRunning(true);
-
     setBenchDialogOpen(false);
-    notify.success(`Current bench set to ${selectedCurrentBench}`);
   }
-
-  const filteredFromBenches = React.useMemo(() => {
-    if (!toBench) return benches;
-    return benches.filter((b) => b <= Number(toBench));
-  }, [benches, toBench]);
-
-  const filteredToBenches = React.useMemo(() => {
-    if (!fromBench) return benches;
-    return benches.filter((b) => b >= Number(fromBench));
-  }, [benches, fromBench]);
-
-  const filteredFromRows = React.useMemo(() => {
-    if (!toRow) return rows;
-    return rows.filter((r) => r <= Number(toRow));
-  }, [rows, toRow]);
-
-  const filteredToRows = React.useMemo(() => {
-    if (!fromRow) return rows;
-    return rows.filter((r) => r >= Number(fromRow));
-  }, [rows, fromRow]);
 
   React.useEffect(() => {
     if (!ros || !connected) return;
@@ -565,69 +563,70 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
 
         <Stack spacing={3} sx={{ marginTop: 2 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="body1">
-              Auto mode
-              {fromBench && fromRow && toBench && toRow ? `  |  From: B${fromBench}, R${fromRow}  →  To: B${toBench}, R${toRow}` : ""}
-            </Typography>
+            <Typography variant="body1">Auto mode scan plan</Typography>
+
+            <Button variant="outlined" disabled={mode !== "auto" || autoRunning} onClick={addScanRow} sx={{ textTransform: "none", borderRadius: 3 }}>
+              + Add Scan Range
+            </Button>
           </Stack>
 
-          <Stack direction="row" spacing={3}>
-            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-              <Stack spacing={2}>
-                <Typography variant="subtitle1">From</Typography>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              maxHeight: 180, // roughly 3 rows visible
+              overflowY: "auto",
+            }}
+          >
+            <Stack spacing={2}>
+              {scanRows.map((scan, index) => (
+                <Stack key={index} direction="row" spacing={2} alignItems="center">
+                  <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                    <InputLabel>Bench</InputLabel>
+                    <Select value={scan.bench} label="Bench" onChange={(e) => updateScanRow(index, "bench", e.target.value)}>
+                      {benches.map((bench) => (
+                        <MenuItem key={bench} value={bench}>
+                          Bench {bench}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
-                  <InputLabel>Bench No</InputLabel>
-                  <Select value={fromBench} label="Bench No" onChange={(e) => setFromBench(e.target.value)}>
-                    {filteredFromBenches.map((bench) => (
-                      <MenuItem key={bench} value={bench}>
-                        {bench}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                  <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                    <InputLabel>From Row</InputLabel>
+                    <Select value={scan.fromRow} label="From Row" onChange={(e) => updateScanRow(index, "fromRow", e.target.value)}>
+                      {rows.map((row) => (
+                        <MenuItem key={row} value={row}>
+                          Row {row}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
-                  <InputLabel>Row No</InputLabel>
-                  <Select value={fromRow} label="Row No" onChange={(e) => setFromRow(e.target.value)}>
-                    {filteredFromRows.map((row) => (
-                      <MenuItem key={row} value={row}>
-                        {row}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Paper>
+                  <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning || !scan.fromRow}>
+                    <InputLabel>To Row</InputLabel>
+                    <Select value={scan.toRow} label="To Row" onChange={(e) => updateScanRow(index, "toRow", e.target.value)}>
+                      {getToRows(scan.fromRow).map((row) => (
+                        <MenuItem key={row} value={row}>
+                          Row {row}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-              <Stack spacing={2}>
-                <Typography variant="subtitle1">To</Typography>
-
-                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
-                  <InputLabel>Bench No</InputLabel>
-                  <Select value={toBench} label="Bench No" onChange={(e) => setToBench(e.target.value)}>
-                    {filteredToBenches.map((bench) => (
-                      <MenuItem key={bench} value={bench}>
-                        {bench}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
-                  <InputLabel>Row No</InputLabel>
-                  <Select value={toRow} label="Row No" onChange={(e) => setToRow(e.target.value)}>
-                    {filteredToRows.map((row) => (
-                      <MenuItem key={row} value={row}>
-                        {row}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Paper>
-          </Stack>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    disabled={mode !== "auto" || autoRunning || scanRows.length === 1}
+                    onClick={() => removeScanRow(index)}
+                    sx={{ minWidth: 90, textTransform: "none" }}
+                  >
+                    Remove
+                  </Button>
+                </Stack>
+              ))}
+            </Stack>
+          </Paper>
 
           <Stack direction="row" spacing={2}>
             <Button
