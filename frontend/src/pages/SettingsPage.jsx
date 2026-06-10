@@ -220,19 +220,18 @@ export default function SettingsPage({ ros, connected, config, setConfig, initia
                           loadingText={item.loadingText}
                           disabled={!connected}
                           onClick={async () => {
-                            try {
-                              if (!ros || !connected) throw new Error("ROS not connected");
+                            const res = await callTrigger({
+                              ros,
+                              serviceName: item.serviceName,
+                            });
 
-                              const res = await callTrigger({
-                                ros,
-                                serviceName: item.serviceName,
-                              });
-                              if (!res.success) throw new Error(res.message || "Action failed");
-
-                              notify.success(res.message || "Done");
-                            } catch (e) {
-                              notify.error(e?.message || "Action failed");
+                            if (res.success) {
+                              notify.success(res.message);
+                            } else {
+                              notify.error(res.message);
                             }
+
+                            return res;
                           }}
                         />
                       );

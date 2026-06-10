@@ -19,17 +19,7 @@ export default function SettingButton({
 
     setLoading(true);
     try {
-      const result = await onClick();
-
-      if (typeof result === "string") {
-        snackbar.success(result);
-      } else if (result && typeof result === "object") {
-        const severity = result.severity || (result.ok ? "success" : "error");
-        const message = result.message || (result.ok ? "Done." : "Failed.");
-        snackbar.show(severity, message);
-      } else {
-        snackbar.success("Done.");
-      }
+      await onClick();
     } catch (err) {
       snackbar.error(err?.message || "Operation failed.");
     } finally {
@@ -51,9 +41,7 @@ export default function SettingButton({
             fontWeight: 700,
             minWidth: 160,
           }}
-          startIcon={
-            loading ? <CircularProgress size={18} color="inherit" /> : null
-          }
+          startIcon={loading ? <CircularProgress size={18} color="inherit" /> : null}
         >
           {loading ? loadingText : buttonText}
         </Button>
