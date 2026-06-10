@@ -58,6 +58,46 @@ export const SETTING_GROUPS = [
     ],
   },
   {
+    key: "robotic_arm",
+    title: "Robotic Arm Settings",
+    children: [
+      {
+        type: "button",
+        title: "Stop arm movement",
+        description:
+          "Stop the current arm movement immediately. After stopping, you may need to reset the arm controller before sending new commands.",
+        buttonText: "Stop",
+        loadingText: "Stopping...",
+        serviceName: "/arm/stop",
+      },
+      {
+        type: "button",
+        title: "Reset arm controller",
+        description:
+          "Use this to reset arm after  using joystick control or if the arm is not responding. This will stop the arm and reset the MoveIt controller.",
+        buttonText: "Reset",
+        loadingText: "Resetting...",
+        serviceName: "/arm/reset_moveit_control",
+      },
+      {
+        type: "button",
+        title: "Rest Position",
+        description: "Move the robotic arm to its rest position.",
+        buttonText: "Move to Rest",
+        loadingText: "Moving...",
+        serviceName: "/arm/go_rest",
+      },
+      {
+        type: "button",
+        title: "Custom pose 1 ",
+        description: "Move the robotic arm to its custom pose 1.",
+        buttonText: "Move to Pose 1",
+        loadingText: "Moving...",
+        serviceName: "/arm/pose_1",
+      },
+    ],
+  },
+  {
     key: "bench_tracker_v3",
     title: "Bench Tracker Settings",
     children: [

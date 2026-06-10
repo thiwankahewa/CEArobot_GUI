@@ -11,6 +11,7 @@ import SettingsPage from "./pages/SettingsPage";
 import LogsPage from "./pages/LogsPage";
 import TestPage from "./pages/TestPage";
 import { LogsProvider } from "./ui/LogsCatcher.jsx";
+import { callTrigger } from "./ros/callTrigger";
 
 import { useAppDialog } from "./ui/AppDialogProvider.jsx";
 import { useAppSnackbar } from "./ui/AppSnackbarProvider.jsx";
@@ -101,6 +102,29 @@ export default function App() {
     setTab(nextTab);
   };
 
+  async function handleArmStopClick() {
+    if (!connected || !ros) {
+      notify.error("ROS not connected. Cannot stop arm.");
+      return;
+    }
+
+    try {
+      const res = await callTrigger({
+        ros,
+        serviceName: "/arm/stop",
+        timeout: 3000,
+      });
+
+      if (res.success) {
+        notify.success(res.message || "Arm stop sent.");
+      } else {
+        notify.error(res.message || "Arm stop failed.");
+      }
+    } catch (e) {
+      notify.error(e?.message || "Failed to call /arm/stop.");
+    }
+  }
+
   function handleEstopClick() {
     if (!estopActive) {
       sendEstop(true);
@@ -184,6 +208,23 @@ export default function App() {
         <PageContainer>{pages[tab]}</PageContainer>
       </LogsProvider>
       <BottomNav value={tab} onChange={handleTabChange} />
+      <Fab
+        variant="extended"
+        color="info"
+        onClick={handleArmStopClick}
+        disabled={!connected}
+        sx={{
+          position: "fixed",
+          left: 25,
+          bottom: 10,
+          letterSpacing: 1.2,
+          borderRadius: 10,
+          padding: 4.5,
+          fontSize: 17,
+        }}
+      >
+        ARM STOP
+      </Fab>
       <Fab
         variant="extended"
         color={estopActive ? "error" : "default"}
