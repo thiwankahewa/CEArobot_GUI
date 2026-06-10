@@ -227,7 +227,7 @@ export default function App() {
       </Fab>
       <Fab
         variant="extended"
-        color={estopActive ? "error" : "default"}
+        color={estopActive ? "error" : "info"}
         onClick={handleEstopClick}
         sx={{
           position: "fixed",

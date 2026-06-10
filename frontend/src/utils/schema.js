@@ -25,4 +25,7 @@ export const SETTINGS_SCHEMA = [
   { paramName: "acel_ms", nodes: ["/hub_motor_driver_v2"], type: "int", default: 1200 },
   { paramName: "decel_ms_corr", nodes: ["/hub_motor_driver_v2"], type: "int", default: 1200 },
   { paramName: "acel_ms_corr", nodes: ["/hub_motor_driver_v2"], type: "int", default: 1200 },
+
+  { paramName: "z_offset", nodes: ["/plant_view_scanner"], type: "double", default: 0.2 },
+  { paramName: "view_count", nodes: ["/plant_view_scanner"], type: "int", default: 3 },
 ];
