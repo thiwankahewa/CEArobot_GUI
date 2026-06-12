@@ -9,7 +9,6 @@ import RunPage from "./pages/RunPage";
 import PhenoPage from "./pages/PhenoPage";
 import SettingsPage from "./pages/SettingsPage";
 import LogsPage from "./pages/LogsPage";
-import TestPage from "./pages/TestPage";
 import { LogsProvider } from "./ui/LogsCatcher.jsx";
 import { callTrigger } from "./ros/callTrigger";
 
@@ -24,7 +23,7 @@ import { SETTINGS_SCHEMA } from "./utils/schema";
 const DEFAULT_CONFIG = schemaToDefaultConfig(SETTINGS_SCHEMA);
 
 export default function App() {
-  const [tab, setTab] = React.useState(1);
+  const [tab, setTab] = React.useState(0);
   const [estopActive, setEstopActive] = React.useState(false);
   const [initialConfig, setInitialConfig] = React.useState(() => DEFAULT_CONFIG);
   const [config, setConfig] = React.useState(() => DEFAULT_CONFIG);
@@ -43,7 +42,7 @@ export default function App() {
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
 
-  const PROTECTED_TABS = new Set([1, 2, 3, 4, 5]);
+  const PROTECTED_TABS = new Set([0, 1, 2, 3]);
 
   const topicSpecs = React.useMemo(
     () => [
@@ -57,7 +56,7 @@ export default function App() {
     [],
   );
 
-  const { publish, topicsReady, subscribe } = useRosTopics(ros, connected, topicSpecs);
+  const { publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
 
   const pages = [
     <RunPage
@@ -80,7 +79,6 @@ export default function App() {
       setInitialConfig={setInitialConfig}
     />,
     <LogsPage ros={ros} connected={connected} estopActive={estopActive} />,
-    <TestPage ros={ros} connected={connected} estopActive={estopActive} />,
   ];
 
   const handleTabChange = (nextTab) => {

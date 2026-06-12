@@ -111,7 +111,7 @@ export const SETTING_GROUPS = [
         title: "Number of scan poses",
         description:
           "The number of different positions the camera will take while scanning the plant. Adjust this value to optimize the scanning range.",
-        path: "view_countt",
+        path: "view_count",
         min: 0,
         max: 10,
         step: 1,

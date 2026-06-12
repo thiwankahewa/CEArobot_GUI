@@ -1,6 +1,6 @@
 export const SETTINGS_SCHEMA = [
-  { paramName: "bench_height", nodes: ["/plant_locator", "/zed_test_scan"], type: "double", default: 0.75 },
-  { paramName: "pot_height", nodes: ["/plant_locator", "/zed_test_scan"], type: "double", default: 0.15 },
+  { paramName: "bench_height", nodes: ["/plant_view_scanner", "/zed_test_scan"], type: "double", default: 0.75 },
+  { paramName: "pot_height", nodes: ["/plant_view_scanner", "/zed_test_scan"], type: "double", default: 0.15 },
 
   { paramName: "min_tof", nodes: ["/bench_tracker_v3"], type: "int", default: 25 },
   { paramName: "max_tof", nodes: ["/bench_tracker_v3"], type: "int", default: 500 },
