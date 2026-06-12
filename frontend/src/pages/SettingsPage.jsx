@@ -7,6 +7,7 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SaveIcon from "@mui/icons-material/Save";
 import UndoIcon from "@mui/icons-material/Undo";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import SettingToggle from "../ui/SettingToggle";
 import SettingNumber from "../ui/SettingNumber";
 import SettingSlider from "../ui/SettingSlider";
@@ -40,6 +41,7 @@ function formatSettingValue(value, unit) {
 
 export default function SettingsPage({ ros, connected, config, setConfig, initialConfig, setInitialConfig }) {
   const [saving, setSaving] = React.useState(false);
+  const [showChangedSettings, setShowChangedSettings] = React.useState(true);
 
   const notify = useAppSnackbar();
   const dirty = !deepEqual(config, initialConfig);
@@ -164,6 +166,72 @@ export default function SettingsPage({ ros, connected, config, setConfig, initia
             </Button>
           </Stack>
         </Stack>
+
+        <Divider sx={{ my: 1.5 }} />
+
+        <Stack spacing={1.25}>
+          <Button
+            variant="text"
+            disabled={!dirty}
+            onClick={() => setShowChangedSettings((prev) => !prev)}
+            endIcon={
+              <KeyboardArrowDownIcon
+                sx={{
+                  transform: showChangedSettings ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 160ms ease",
+                }}
+              />
+            }
+            sx={{
+              alignSelf: "flex-start",
+              px: 0,
+              color: dirty ? "text.primary" : "text.secondary",
+              fontWeight: 700,
+            }}
+          >
+            Changed settings · {dirty ? changedSettings.length : 0}
+          </Button>
+
+          {dirty && showChangedSettings && (
+            <Stack spacing={0.75} sx={{ maxHeight: 180, overflowY: "auto", pr: 0.5 }}>
+              {changedSettings.map((item) => (
+                <Box
+                  key={item.path}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(180px, 1fr) auto",
+                    gap: 2,
+                    alignItems: "center",
+                    px: 1,
+                    py: 0.75,
+                    borderRadius: 1.5,
+                    bgcolor: "action.hover",
+                  }}
+                >
+                  <Stack spacing={0.2}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {item.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.groupTitle}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      {formatSettingValue(item.initialValue, item.unit)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      →
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                      {formatSettingValue(item.currentValue, item.unit)}
+                    </Typography>
+                  </Stack>
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </Stack>
       </Paper>
       <Box
         sx={{
@@ -175,44 +243,6 @@ export default function SettingsPage({ ros, connected, config, setConfig, initia
           userSelect: "none",
         }}
       >
-        <Accordion defaultExpanded={dirty} disabled={!dirty} sx={{ borderRadius: 2, mb: 2 }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Stack spacing={0.2}>
-              <Typography sx={{ fontWeight: 700 }}>Changed settings</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {dirty ? `${changedSettings.length} setting${changedSettings.length === 1 ? "" : "s"} changed` : "No unsaved changes"}
-              </Typography>
-            </Stack>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={1.25}>
-              {changedSettings.map((item) => (
-                <Paper key={item.path} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                  <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-                    <Stack spacing={0.3}>
-                      <Typography sx={{ fontWeight: 700 }}>{item.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.groupTitle}
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="body2" color="text.secondary">
-                        {formatSettingValue(item.initialValue, item.unit)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        →
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                        {formatSettingValue(item.currentValue, item.unit)}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
-
         {SETTING_GROUPS.map((group) => (
           <Accordion key={group.key} sx={{ borderRadius: 2, mb: 2 }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
