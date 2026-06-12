@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import { useRosTopics } from "../ros/useRosTopics";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
@@ -30,6 +31,28 @@ const STEER_STEP_DEG = 5; // left/right step in steering mode
 const STEER_MIN = 45;
 const STEER_MAX = 135;
 
+function DisabledReason({ children }) {
+  if (!children) return null;
+
+  return (
+    <Stack
+      direction="row"
+      spacing={0.75}
+      alignItems="center"
+      sx={{
+        px: 1.25,
+        py: 0.75,
+        borderRadius: 1.5,
+        bgcolor: "action.hover",
+        color: "text.secondary",
+      }}
+    >
+      <InfoOutlinedIcon fontSize="small" />
+      <Typography variant="caption">{children}</Typography>
+    </Stack>
+  );
+}
+
 export default function RunPage({ ros, connected, mode, setMode, autoState, setAutoState, estopActive }) {
   const [steerMode, setSteerMode] = React.useState("diff");
   const [steerDeg, setSteerDeg] = React.useState(0);
@@ -39,7 +62,6 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
 
   const [scanRows, setScanRows] = React.useState([{ bench: "", fromRow: "", toRow: "" }]);
   const [autoRunning, setAutoRunning] = React.useState(false);
-  const [marker, setMarker] = React.useState("-");
   const [currentBench, setCurrentBench] = React.useState("-");
   const [currentRow, setCurrentRow] = React.useState("-");
   const [goalBench, setGoalBench] = React.useState("-");
@@ -116,8 +138,55 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
   const notify = useAppSnackbar();
   const { showDialog } = useAppDialog();
 
-  const isManual = !estopActive && mode === "manual";
-  const joystickEnabled = isManual && !steerBusy;
+  const manualDisabledReason = (() => {
+    if (!connected || !topicsReady) return "Disabled: ROS is not connected.";
+    if (estopActive) return "Disabled: E-Stop is active.";
+    if (mode !== "manual") return "Disabled: switch to Manual mode.";
+    if (steerBusy) return "Disabled: steering is moving to the selected angle.";
+    return "";
+  })();
+
+  const steeringModeDisabledReason = (() => {
+    if (!connected || !topicsReady) return "Disabled: ROS is not connected.";
+    if (estopActive) return "Disabled: E-Stop is active.";
+    if (mode !== "manual") return "Disabled: switch to Manual mode.";
+    if (steerBusy) return "Disabled: waiting for steering to settle.";
+    return "";
+  })();
+
+  const autoModeDisabledReason = (() => {
+    if (!connected || !topicsReady) return "Disabled: ROS is not connected.";
+    if (estopActive) return "Disabled: E-Stop is active.";
+    if (mode !== "auto") return "Disabled: switch to Auto mode.";
+    return "";
+  })();
+
+  const scanPlanDisabledReason = (() => {
+    if (autoModeDisabledReason) return autoModeDisabledReason;
+    if (autoRunning) return "Disabled: scan is running.";
+    return "";
+  })();
+
+  const startDisabledReason = (() => {
+    if (scanPlanDisabledReason) return scanPlanDisabledReason;
+    const invalidRow = scanRows.some((row) => !row.bench || !row.fromRow || !row.toRow);
+    if (invalidRow) return "Complete every bench and row range before starting.";
+    return "";
+  })();
+
+  const stopDisabledReason = (() => {
+    if (autoModeDisabledReason) return autoModeDisabledReason;
+    if (!autoRunning) return "Disabled: no scan is running.";
+    return "";
+  })();
+
+  const manualPanelDisabledReason = steeringModeDisabledReason || manualDisabledReason;
+  const autoPanelDisabledReason = autoModeDisabledReason || scanPlanDisabledReason || startDisabledReason;
+
+  const isManual = !manualDisabledReason;
+  const joystickEnabled = !manualDisabledReason;
+  const autoControlsEnabled = !autoModeDisabledReason;
+  const scanPlanEnabled = !scanPlanDisabledReason;
 
   function ensureRosReady() {
     if (!topicsReady) {
@@ -337,13 +406,11 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
       (msg) => {
         const d = msg?.data ?? [];
 
-        const marker = Number(d[0]);
         const currentBench = Number(d[1]);
         const currentRow = Number(d[2]);
         const goalBench = Number(d[3]);
         const goalRow = Number(d[4]);
 
-        if (Number.isFinite(marker)) setMarker(marker);
         if (Number.isFinite(currentBench)) setCurrentBench(currentBench);
         if (Number.isFinite(currentRow)) setCurrentRow(currentRow);
         if (Number.isFinite(goalBench)) setGoalBench(goalBench);
@@ -376,6 +443,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
     return () => {
       unsubDebug();
       unsubStop();
+      unsubState();
     };
   }, [subscribe, connected]);
 
@@ -431,7 +499,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
               if (!v) return;
               setSteeringMode(v);
             }}
-            disabled={!isManual || steerBusy}
+            disabled={!!steeringModeDisabledReason}
             fullWidth
             sx={{
               "& .MuiToggleButton-root": { textTransform: "none" },
@@ -538,6 +606,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
           <Typography variant="caption" color="text.secondary">
             Tip: hold teleop buttons to keep moving CEAbot.
           </Typography>
+          <DisabledReason>{manualPanelDisabledReason}</DisabledReason>
         </Stack>
       </Paper>
       <Paper variant="outlined" sx={{ p: 1.5, width: "67%" }}>
@@ -547,7 +616,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
           </Stack>
           <ToggleButtonGroup
             value={autoState ?? null}
-            disabled={mode !== "auto"}
+            disabled={!autoControlsEnabled}
             exclusive
             onChange={(_, v) => {
               if (v == null) return;
@@ -580,7 +649,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography variant="body1">Auto mode scan plan</Typography>
 
-            <Button variant="outlined" disabled={mode !== "auto" || autoRunning} onClick={addScanRow} sx={{ textTransform: "none", borderRadius: 3 }}>
+            <Button variant="outlined" disabled={!scanPlanEnabled} onClick={addScanRow} sx={{ textTransform: "none", borderRadius: 3 }}>
               + Add Scan Range
             </Button>
           </Stack>
@@ -596,7 +665,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
             <Stack spacing={2}>
               {scanRows.map((scan, index) => (
                 <Stack key={index} direction="row" spacing={2} alignItems="center">
-                  <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                  <FormControl fullWidth size="small" disabled={!scanPlanEnabled}>
                     <InputLabel>Bench</InputLabel>
                     <Select value={scan.bench} label="Bench" onChange={(e) => updateScanRow(index, "bench", e.target.value)}>
                       {benches.map((bench) => (
@@ -607,7 +676,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
                     </Select>
                   </FormControl>
 
-                  <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning}>
+                  <FormControl fullWidth size="small" disabled={!scanPlanEnabled}>
                     <InputLabel>From Row</InputLabel>
                     <Select value={scan.fromRow} label="From Row" onChange={(e) => updateScanRow(index, "fromRow", e.target.value)}>
                       {rows.map((row) => (
@@ -618,7 +687,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
                     </Select>
                   </FormControl>
 
-                  <FormControl fullWidth size="small" disabled={mode !== "auto" || autoRunning || !scan.fromRow}>
+                  <FormControl fullWidth size="small" disabled={!scanPlanEnabled || !scan.fromRow}>
                     <InputLabel>To Row</InputLabel>
                     <Select value={scan.toRow} label="To Row" onChange={(e) => updateScanRow(index, "toRow", e.target.value)}>
                       {getToRows(scan.fromRow).map((row) => (
@@ -632,7 +701,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
                   <Button
                     variant="outlined"
                     color="error"
-                    disabled={mode !== "auto" || autoRunning || scanRows.length === 1}
+                    disabled={!scanPlanEnabled || scanRows.length === 1}
                     onClick={() => removeScanRow(index)}
                     sx={{ minWidth: 90, textTransform: "none" }}
                   >
@@ -647,7 +716,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
             <Button
               variant="contained"
               fullWidth
-              disabled={mode !== "auto" || autoRunning}
+              disabled={!!startDisabledReason}
               onClick={handleAutoStart}
               sx={{ height: 56, fontSize: 18, textTransform: "none", borderRadius: 10 }}
               startIcon={autoRunning ? <CircularProgress size={18} color="inherit" /> : <PlayArrowIcon />}
@@ -659,7 +728,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
               variant="outlined"
               color="error"
               fullWidth
-              disabled={mode !== "auto" || !autoRunning}
+              disabled={!!stopDisabledReason}
               onClick={handleAutoStop}
               sx={{ height: 56, fontSize: 18, textTransform: "none", borderRadius: 10 }}
               startIcon={<StopIcon />}
@@ -753,6 +822,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
               </Typography>
             )}
           </Stack>
+          <DisabledReason>{autoPanelDisabledReason}</DisabledReason>
         </Stack>
       </Paper>
       <Dialog open={benchDialogOpen} onClose={() => setBenchDialogOpen(false)} maxWidth="xs" fullWidth>
