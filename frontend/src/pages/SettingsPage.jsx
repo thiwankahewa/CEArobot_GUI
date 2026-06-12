@@ -12,7 +12,7 @@ import SettingNumber from "../ui/SettingNumber";
 import SettingSlider from "../ui/SettingSlider";
 import SettingButton from "../ui/SettingButton";
 
-import { deepEqual, setByPath, schemaToMap, configDiffToRosUpdates, groupUpdatesByNode } from "../utils/configUtils";
+import { deepEqual, getByPath, setByPath, schemaToMap, configDiffToRosUpdates, groupUpdatesByNode } from "../utils/configUtils";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
 import { setRos2Param } from "../ros/setRos2Param";
 import { setRos2ParamsBatch } from "../ros/setRos2ParamsBatch";
@@ -31,11 +31,33 @@ function roundByStep(value, step) {
   return Number(value.toFixed(decimals));
 }
 
+function formatSettingValue(value, unit) {
+  if (value === undefined) return "Not loaded";
+  if (value === null) return "None";
+  if (typeof value === "boolean") return value ? "On" : "Off";
+  return `${value}${unit ? ` ${unit}` : ""}`;
+}
+
 export default function SettingsPage({ ros, connected, config, setConfig, initialConfig, setInitialConfig }) {
   const [saving, setSaving] = React.useState(false);
 
   const notify = useAppSnackbar();
   const dirty = !deepEqual(config, initialConfig);
+  const changedSettings = React.useMemo(
+    () =>
+      SETTING_GROUPS.flatMap((group) =>
+        group.children
+          .filter((item) => item.path)
+          .map((item) => ({
+            ...item,
+            groupTitle: group.title,
+            currentValue: getByPath(config, item.path),
+            initialValue: getByPath(initialConfig, item.path),
+          }))
+          .filter((item) => !deepEqual(item.currentValue, item.initialValue)),
+      ),
+    [config, initialConfig],
+  );
 
   async function updateSetting(paramName, value) {
     setConfig((prev) => setByPath(prev, paramName, value));
@@ -153,6 +175,44 @@ export default function SettingsPage({ ros, connected, config, setConfig, initia
           userSelect: "none",
         }}
       >
+        <Accordion defaultExpanded={dirty} disabled={!dirty} sx={{ borderRadius: 2, mb: 2 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Stack spacing={0.2}>
+              <Typography sx={{ fontWeight: 700 }}>Changed settings</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {dirty ? `${changedSettings.length} setting${changedSettings.length === 1 ? "" : "s"} changed` : "No unsaved changes"}
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={1.25}>
+              {changedSettings.map((item) => (
+                <Paper key={item.path} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                  <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+                    <Stack spacing={0.3}>
+                      <Typography sx={{ fontWeight: 700 }}>{item.title}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.groupTitle}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        {formatSettingValue(item.initialValue, item.unit)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        →
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                        {formatSettingValue(item.currentValue, item.unit)}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
         {SETTING_GROUPS.map((group) => (
           <Accordion key={group.key} sx={{ borderRadius: 2, mb: 2 }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
