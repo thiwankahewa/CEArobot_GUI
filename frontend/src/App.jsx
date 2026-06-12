@@ -52,11 +52,17 @@ export default function App() {
         type: "std_msgs/msg/Bool",
         queue_size: 1,
       },
+      {
+        key: "autoStateSub",
+        name: "/auto_state",
+        type: "std_msgs/msg/String",
+        queue_size: 1,
+      },
     ],
     [],
   );
 
-  const { publish, topicsReady } = useRosTopics(ros, connected, topicSpecs);
+  const { publish, topicsReady, subscribe } = useRosTopics(ros, connected, topicSpecs);
 
   const pages = [
     <RunPage
@@ -181,6 +187,24 @@ export default function App() {
   }, [topicsReady, publish]);
 
   React.useEffect(() => {
+    if (!ros || !connected) return;
+
+    const unsubscribeAutoState = subscribe(
+      "autoStateSub",
+      (msg) => {
+        if (typeof msg?.data === "string") {
+          setAutoState(msg.data);
+        }
+      },
+      { throttleMs: 100 },
+    );
+
+    return () => {
+      unsubscribeAutoState();
+    };
+  }, [ros, connected, subscribe]);
+
+  React.useEffect(() => {
     (async () => {
       if (!connected || !ros || settingsLoaded) return;
 
@@ -201,7 +225,7 @@ export default function App() {
 
   return (
     <div>
-      <TopStatusBar ros={ros} connected={connected} lastError={lastError} connect={connect} disconnect={disconnect} mode={mode} />
+      <TopStatusBar connected={connected} lastError={lastError} connect={connect} disconnect={disconnect} autoState={autoState} />
       <LogsProvider ros={ros} connected={connected}>
         <PageContainer>{pages[tab]}</PageContainer>
       </LogsProvider>

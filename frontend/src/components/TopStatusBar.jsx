@@ -5,10 +5,18 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import StatusChip from "./StatusChip";
 import { useAppDialog } from "../ui/AppDialogProvider";
 import { useAppSnackbar } from "../ui/AppSnackbarProvider";
-import { useRosTopics } from "../ros/useRosTopics";
 import Logo from "../assets/ugaLogo.png";
 
-export default function TopStatusBar({ ros, connected, lastError, connect, disconnect, mode }) {
+function formatRobotState(robotState) {
+  if (!robotState) return "Unknown";
+  return String(robotState)
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export default function TopStatusBar({ connected, lastError, connect, disconnect, autoState }) {
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
 
@@ -34,7 +42,7 @@ export default function TopStatusBar({ ros, connected, lastError, connect, disco
         method: "POST",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    } catch (e) {
+    } catch {
       notify.error("Failed to exit kiosk");
     }
   }
@@ -80,7 +88,7 @@ export default function TopStatusBar({ ros, connected, lastError, connect, disco
         <Toolbar sx={{ backgroundColor: "#dce2e8ff" }}>
           <Stack direction="row" alignItems="center" sx={{ flex: 1 }}>
             <Stack direction="row" spacing={1.5}>
-              <StatusChip label={`Mode: ${mode === "manual" ? "Manual" : "Auto"}`} color={connected ? "primary" : "default"} variant="outlined" />
+              <StatusChip label={`Robot State: ${formatRobotState(autoState)}`} color={connected ? "info" : "default"} variant="outlined" />
             </Stack>
             <Box
               component="img"
