@@ -21,6 +21,8 @@ import { buildConfigFromSchema, schemaToDefaultConfig } from "./utils/configUtil
 import { SETTINGS_SCHEMA } from "./utils/schema";
 
 const DEFAULT_CONFIG = schemaToDefaultConfig(SETTINGS_SCHEMA);
+const ROSBRIDGE_URL = "ws://172.18.184.245:9090/";
+//const ROSBRIDGE_URL = "ws://localhost:9090";
 
 export default function App() {
   const [tab, setTab] = React.useState(0);
@@ -37,7 +39,7 @@ export default function App() {
     autoState: null,
   });*/
 
-  const { ros, connected, lastError, connect, disconnect } = useRos("ws://localhost:9090");
+  const { ros, connected, lastError, connect, disconnect } = useRos(ROSBRIDGE_URL);
 
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
