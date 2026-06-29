@@ -1,4 +1,5 @@
 import * as React from "react";
+import * as ROSLIB from "roslib";
 import {
   Box,
   Button,
@@ -380,14 +381,16 @@ function PointCloudViewer({ plyUrl }) {
   );
 }
 
-export default function PhenoPage() {
+export default function PhenoPage({ ros, connected }) {
   const notify = useAppSnackbar();
   const [filters, setFilters] = React.useState({ date: "", bench: "", row: "" });
+  const [captureForm, setCaptureForm] = React.useState({ bench: "", row: "", plantNumber: "", viewNumber: "" });
   const [runs, setRuns] = React.useState([]);
   const [selectedRunId, setSelectedRunId] = React.useState("");
   const [selectedPlantId, setSelectedPlantId] = React.useState("");
   const [selectedImageId, setSelectedImageId] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [captureBusy, setCaptureBusy] = React.useState(false);
   const [error, setError] = React.useState("");
 
   const selectedRun = React.useMemo(() => runs.find((run) => run.id === selectedRunId) ?? null, [runs, selectedRunId]);
@@ -398,9 +401,10 @@ export default function PhenoPage() {
 
   const imageOptions = React.useMemo(() => {
     const rowImages = selectedRun?.rowImages.map((image) => ({ ...image, group: "Row" })) ?? [];
-    const plantImages = selectedPlant?.views
-      .filter((view) => view.colorUrl)
-      .map((view) => ({ id: view.id, label: view.label, url: view.colorUrl, group: selectedPlant.label })) ?? [];
+    const plantImages =
+      selectedPlant?.views
+        .filter((view) => view.colorUrl)
+        .map((view) => ({ id: view.id, label: view.label, url: view.colorUrl, group: selectedPlant.label })) ?? [];
     return [...rowImages, ...plantImages];
   }, [selectedRun, selectedPlant]);
 
@@ -422,6 +426,63 @@ export default function PhenoPage() {
   const updateFilter = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
+
+  const updateCaptureForm = (key, value) => {
+    setCaptureForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  async function handleManualCapture() {
+    const bench = Number(captureForm.bench || filters.bench);
+    const row = Number(captureForm.row || filters.row);
+    const plantNumber = Number(captureForm.plantNumber);
+    const viewNumber = Number(captureForm.viewNumber);
+
+    if (!Number.isFinite(bench) || !Number.isFinite(row) || !Number.isFinite(plantNumber) || !Number.isFinite(viewNumber)) {
+      notify.error("Please fill bench, row, plant number, and view number before capturing.");
+      return;
+    }
+
+    if (!ros || !connected) {
+      notify.error("ROS is not connected. Connect first to capture a manual view.");
+      return;
+    }
+
+    const now = new Date();
+    const yyyymmdd = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const hhmmss = now.toTimeString().slice(0, 8).replace(/:/g, "");
+    const runName = `b${bench}_r${row}_${yyyymmdd}_${hhmmss}`;
+    const runDir = `/home/thiwa/scan_data_zed_manual/${runName}`;
+    const viewLabel = `view_${viewNumber}`;
+
+    setCaptureBusy(true);
+    try {
+      const service = new ROSLIB.Service({
+        ros,
+        name: "/orbbec_test_scan/capture_view",
+        serviceType: "arm_interfaces/srv/CaptureView",
+      });
+
+      const request = {
+        run_dir: runDir,
+        plant_id: plantNumber,
+        view_label: viewLabel,
+      };
+
+      const res = await new Promise((resolve, reject) => {
+        service.callService(request, resolve, (err) => reject(new Error(err?.message || "Capture request failed")), 20000);
+      });
+
+      if (res?.success) {
+        notify.success(`Manual capture requested for ${runDir}/plant_${String(plantNumber).padStart(2, "0")}/${viewLabel}`);
+      } else {
+        notify.error(res?.message || "Manual capture request failed.");
+      }
+    } catch (e) {
+      notify.error(e?.message || "Manual capture failed.");
+    } finally {
+      setCaptureBusy(false);
+    }
+  }
 
   async function handleSearch() {
     const params = new URLSearchParams();
@@ -521,6 +582,52 @@ export default function PhenoPage() {
         </Box>
       </Paper>
 
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ xs: "stretch", md: "center" }}>
+          <TextField
+            size="small"
+            label="Bench"
+            type="number"
+            value={captureForm.bench}
+            onChange={(event) => updateCaptureForm("bench", event.target.value)}
+            sx={{ minWidth: 110 }}
+          />
+          <TextField
+            size="small"
+            label="Row"
+            type="number"
+            value={captureForm.row}
+            onChange={(event) => updateCaptureForm("row", event.target.value)}
+            sx={{ minWidth: 110 }}
+          />
+          <TextField
+            size="small"
+            label="Plant #"
+            type="number"
+            value={captureForm.plantNumber}
+            onChange={(event) => updateCaptureForm("plantNumber", event.target.value)}
+            sx={{ minWidth: 110 }}
+          />
+          <TextField
+            size="small"
+            label="View #"
+            type="number"
+            value={captureForm.viewNumber}
+            onChange={(event) => updateCaptureForm("viewNumber", event.target.value)}
+            sx={{ minWidth: 110 }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleManualCapture}
+            disabled={!connected || captureBusy || !ros}
+            sx={{ height: 40, minWidth: 150 }}
+          >
+            {captureBusy ? "Capturing..." : "Capture manual view"}
+          </Button>
+        </Stack>
+      </Paper>
+
       <Box
         sx={{
           display: "flex",
@@ -531,12 +638,7 @@ export default function PhenoPage() {
         }}
       >
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, flex: "1 1 42%", minWidth: 0 }}>
-          <FormControl
-            size="small"
-            fullWidth
-            disabled={!imageOptions.length}
-            sx={{ mb: 1.5 }}
-          >
+          <FormControl size="small" fullWidth disabled={!imageOptions.length} sx={{ mb: 1.5 }}>
             <InputLabel>Image</InputLabel>
             <Select value={selectedImageId} label="Image" onChange={(event) => setSelectedImageId(event.target.value)}>
               {imageOptions.map((image) => (

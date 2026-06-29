@@ -4,6 +4,7 @@ import os from "os";
 
 export const PHENO_ROOTS = [
   { id: "zed", label: "ZED scans", dir: path.join(os.homedir(), "scan_data_zed") },
+  { id: "manual-zed", label: "Manual ZED scans", dir: path.join(os.homedir(), "scan_data_zed_manual") },
   { id: "scan", label: "Scan data", dir: path.join(os.homedir(), "scan_data") },
 ];
 
