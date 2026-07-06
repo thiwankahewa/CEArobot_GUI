@@ -17,17 +17,22 @@ import { useAppSnackbar } from "./ui/AppSnackbarProvider.jsx";
 import { useRos } from "./ros/useRos";
 import { useRosTopics } from "./ros/useRosTopics";
 import { getRos2ParamsBatch } from "./ros/getRos2ParamsBatch";
-import { buildConfigFromSchema, schemaToDefaultConfig } from "./utils/configUtils";
+import {
+  buildConfigFromSchema,
+  schemaToDefaultConfig,
+} from "./utils/configUtils";
 import { SETTINGS_SCHEMA } from "./utils/schema";
 
 const DEFAULT_CONFIG = schemaToDefaultConfig(SETTINGS_SCHEMA);
-const ROSBRIDGE_URL = "ws://172.18.184.245:9090/";
-//const ROSBRIDGE_URL = "ws://localhost:9090";
+//const ROSBRIDGE_URL = "ws://172.18.184.246:9090/";
+const ROSBRIDGE_URL = "ws://localhost:9090";
 
 export default function App() {
   const [tab, setTab] = React.useState(0);
   const [estopActive, setEstopActive] = React.useState(false);
-  const [initialConfig, setInitialConfig] = React.useState(() => DEFAULT_CONFIG);
+  const [initialConfig, setInitialConfig] = React.useState(
+    () => DEFAULT_CONFIG,
+  );
   const [config, setConfig] = React.useState(() => DEFAULT_CONFIG);
   const [settingsLoaded, setSettingsLoaded] = React.useState(false);
 
@@ -39,7 +44,8 @@ export default function App() {
     autoState: null,
   });*/
 
-  const { ros, connected, lastError, connect, disconnect } = useRos(ROSBRIDGE_URL);
+  const { ros, connected, lastError, connect, disconnect } =
+    useRos(ROSBRIDGE_URL);
 
   const dialog = useAppDialog();
   const notify = useAppSnackbar();
@@ -64,7 +70,11 @@ export default function App() {
     [],
   );
 
-  const { publish, topicsReady, subscribe } = useRosTopics(ros, connected, topicSpecs);
+  const { publish, topicsReady, subscribe } = useRosTopics(
+    ros,
+    connected,
+    topicSpecs,
+  );
 
   const pages = [
     <RunPage
@@ -227,7 +237,13 @@ export default function App() {
 
   return (
     <div>
-      <TopStatusBar connected={connected} lastError={lastError} connect={connect} disconnect={disconnect} autoState={autoState} />
+      <TopStatusBar
+        connected={connected}
+        lastError={lastError}
+        connect={connect}
+        disconnect={disconnect}
+        autoState={autoState}
+      />
       <LogsProvider ros={ros} connected={connected}>
         <PageContainer>{pages[tab]}</PageContainer>
       </LogsProvider>
