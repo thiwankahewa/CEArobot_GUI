@@ -38,6 +38,7 @@ export default function App() {
 
   const [mode, setMode] = React.useState("manual");
   const [autoState, setAutoState] = React.useState(null);
+  const [performanceLine, setPerformanceLine] = React.useState("");
 
   /*const [runUi, setRunUi] = React.useState({
     mode: "manual",
@@ -63,6 +64,12 @@ export default function App() {
       {
         key: "autoStateSub",
         name: "/auto_state",
+        type: "std_msgs/msg/String",
+        queue_size: 1,
+      },
+      {
+        key: "systemStats",
+        name: "/system_stats",
         type: "std_msgs/msg/String",
         queue_size: 1,
       },
@@ -183,6 +190,7 @@ export default function App() {
     if (!connected) {
       // Optional: reflect disconnected state in UI
       setAutoState("disconnected");
+      setPerformanceLine("");
     }
   }, [connected, setMode, setAutoState]);
 
@@ -211,8 +219,19 @@ export default function App() {
       { throttleMs: 100 },
     );
 
+    const unsubscribeSystemStats = subscribe(
+      "systemStats",
+      (msg) => {
+        if (typeof msg?.data === "string") {
+          setPerformanceLine(msg.data);
+        }
+      },
+      { throttleMs: 1000 },
+    );
+
     return () => {
       unsubscribeAutoState();
+      unsubscribeSystemStats();
     };
   }, [ros, connected, subscribe]);
 
@@ -243,6 +262,7 @@ export default function App() {
         connect={connect}
         disconnect={disconnect}
         autoState={autoState}
+        performanceLine={performanceLine}
       />
       <LogsProvider ros={ros} connected={connected}>
         <PageContainer>{pages[tab]}</PageContainer>

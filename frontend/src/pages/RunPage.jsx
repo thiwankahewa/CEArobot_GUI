@@ -30,6 +30,7 @@ const STEER_WAIT_MS = 700; // wait time after steering change
 const STEER_STEP_DEG = 5; // left/right step in steering mode
 const STEER_MIN = 45;
 const STEER_MAX = 135;
+const AUTO_START_STEER_DEG = 0;
 
 function DisabledReason({ children }) {
   if (!children) return null;
@@ -62,6 +63,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
 
   const [scanRows, setScanRows] = React.useState([{ bench: "", fromRow: "", toRow: "" }]);
   const [autoRunning, setAutoRunning] = React.useState(false);
+  const [autoStarting, setAutoStarting] = React.useState(false);
   const [currentBench, setCurrentBench] = React.useState("-");
   const [currentRow, setCurrentRow] = React.useState("-");
   const [goalBench, setGoalBench] = React.useState("-");
@@ -163,6 +165,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
 
   const scanPlanDisabledReason = (() => {
     if (autoModeDisabledReason) return autoModeDisabledReason;
+    if (autoStarting) return "Disabled: steering is straightening before scan.";
     if (autoRunning) return "Disabled: scan is running.";
     return "";
   })();
@@ -367,13 +370,15 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
 
   function handleAutoStop() {
     if (!ensureRosReady()) return;
+    setAutoStarting(false);
     setAutoRunning(false);
     setAutoState("idle");
     publishAutoState("idle");
   }
 
-  function handleConfirmCurrentBench() {
+  async function handleConfirmCurrentBench() {
     if (!ensureRosReady()) return;
+    if (autoStarting) return;
 
     if (selectedCurrentBench == null) {
       notify.warning("Please select the current bench");
@@ -388,13 +393,33 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
 
     const scanPlanData = scanRows.flatMap((row) => [Number(row.bench), Number(row.fromRow), Number(row.toRow)]);
 
+    stopContinuousCmd();
+    setAutoStarting(true);
+    setSteerMode("diff");
+    setSteerDeg(AUTO_START_STEER_DEG);
+    setSteerBusy(true);
+    publishSteer(AUTO_START_STEER_DEG);
+
+    if (steerTimerRef.current) clearTimeout(steerTimerRef.current);
+    steerTimerRef.current = setTimeout(() => {
+      setSteerBusy(false);
+    }, STEER_WAIT_MS);
+
+    await new Promise((resolve) => setTimeout(resolve, STEER_WAIT_MS));
+
+    if (!ensureRosReady()) {
+      setAutoStarting(false);
+      return;
+    }
+
     publish("currentBench", { data: Number(selectedCurrentBench) });
     publish("goalLocations", { data: scanPlanData });
-    notify.success("Scan plan saved");
+    notify.success("Steering straightened. Scan plan saved");
     const nextState = "bench_tracking_f";
     setAutoState(nextState);
     //publishAutoState(nextState);
     setAutoRunning(true);
+    setAutoStarting(false);
     setBenchDialogOpen(false);
   }
 
@@ -825,7 +850,7 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
           <DisabledReason>{autoPanelDisabledReason}</DisabledReason>
         </Stack>
       </Paper>
-      <Dialog open={benchDialogOpen} onClose={() => setBenchDialogOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={benchDialogOpen} onClose={() => !autoStarting && setBenchDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Confirm current bench</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -863,11 +888,16 @@ export default function RunPage({ ros, connected, mode, setMode, autoState, setA
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setBenchDialogOpen(false)} color="inherit">
+          <Button onClick={() => setBenchDialogOpen(false)} color="inherit" disabled={autoStarting}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handleConfirmCurrentBench} disabled={selectedCurrentBench == null}>
-            Confirm & Start
+          <Button
+            variant="contained"
+            onClick={handleConfirmCurrentBench}
+            disabled={selectedCurrentBench == null || autoStarting}
+            startIcon={autoStarting ? <CircularProgress size={18} color="inherit" /> : null}
+          >
+            {autoStarting ? "Straightening..." : "Confirm & Start"}
           </Button>
         </DialogActions>
       </Dialog>
